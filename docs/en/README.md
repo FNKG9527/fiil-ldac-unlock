@@ -17,7 +17,7 @@ official FIIL+ app. Technically, the app fetches an `activateCode` from the vend
 writes it to the earbuds over a private Bluetooth channel, and the earbuds flip an internal
 flag — only then does the LDAC toggle become available.
 
-**All three FIIL backend domains are now NXDOMAIN** (see [§6](#6-why-the-server-is-provably-dead)),
+**All three FIIL backend domains are now NXDOMAIN** (see [server-status evidence](#why-the-server-is-provably-dead)),
 so tapping "Activate" in the official app just spins forever. Your hardware supports LDAC;
 a shut-down server is holding it hostage.
 
@@ -205,7 +205,7 @@ More in [TROUBLESHOOTING.md](../TROUBLESHOOTING.md).
 
 ---
 
-## 6. Why the server is provably dead
+## Why the server is provably dead
 
 ```
 PS> Resolve-DnsName newservice.fiil.com
