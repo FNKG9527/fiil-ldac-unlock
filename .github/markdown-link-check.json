@@ -1,0 +1,21 @@
+{
+  "ignorePatterns": [
+    {
+      "pattern": "^http://newservice\\.fiil\\.com"
+    },
+    {
+      "pattern": "^https://www\\.contributor-covenant\\.org"
+    },
+    {
+      "pattern": "^https://semver\\.org"
+    },
+    {
+      "pattern": "^https://keepachangelog\\.com"
+    }
+  ],
+  "timeout": "20s",
+  "retryOn429": true,
+  "retryCount": 3,
+  "fallbackRetryDelay": "30s",
+  "aliveStatusCodes": [200, 206, 301, 302, 403, 429]
+}

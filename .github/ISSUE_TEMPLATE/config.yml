@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 安全问题
+    url: https://github.com/FNKG9527/fiil-ldac-unlock/security/advisories/new
+    about: 请勿公开披露。走私密漏洞报告。
+  - name: 使用问题 / 求助
+    url: https://github.com/FNKG9527/fiil-ldac-unlock/discussions
+    about: 不确定是不是 bug？先到 Discussions 问。

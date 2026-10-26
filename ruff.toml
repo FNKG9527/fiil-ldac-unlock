@@ -1,0 +1,31 @@
+# ruff 配置
+# 目标：Python 3.8+ 兼容，只做保守的检查，不引入风格争论
+
+target-version = "py38"
+line-length = 110
+
+[lint]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "W",    # pycodestyle warnings
+    "I",    # isort
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+]
+ignore = [
+    "E501",  # 行太长——中文注释本来就长
+    "B008",  # 函数调用作为默认参数
+    "UP006", # typing.List -> list（3.8 不支持内置泛型）
+    "UP007", # Optional -> |
+    "UP035", # 旧式 typing 导入
+]
+
+[lint.per-file-ignores]
+"src/selftest.py" = ["B011"]        # assert False 在测试里是正常的
+"examples/*" = ["E402"]             # sys.path 调整后再 import
+
+[format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"

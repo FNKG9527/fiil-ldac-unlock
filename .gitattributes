@@ -1,0 +1,14 @@
+# 统一换行符，避免 Windows / Linux 之间的 diff 噪声
+* text=auto eol=lf
+
+# 明确按二进制处理
+*.apk binary
+*.jar binary
+*.keystore binary
+*.jks binary
+*.png binary
+*.jpg binary
+*.ico binary
+
+# 日志按文本处理但保留原样
+*.log text eol=lf

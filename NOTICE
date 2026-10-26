@@ -1,0 +1,52 @@
+# NOTICE
+
+## 商标归属
+
+**FIIL**、**FIIL+**、**CC Pro2**、**CC Nano**、**T1** 等名称与标识是
+**斐耳科技（FIIL）** 及其关联方的商标或注册商标。
+
+本仓库在**指称性合理使用**（nominative fair use）范围内提及这些名称，
+唯一目的是说明本协议适用的设备型号。
+
+这种提及不表示、也不应被理解为斐耳科技对本仓库的赞助、认可、认证或任何形式的关联。
+
+---
+
+## 内容来源
+
+本仓库**不包含**：
+
+- 官方 APK 文件（`fiil.apk`）
+- 反编译产物（`jadx_out/`、`apktool_out/`）
+- 任何厂商源代码、资源文件、图片或字体
+- 任何厂商签发的激活码
+
+本仓库包含的是：**独立编写的协议描述文档**，以及**基于该描述重新实现的通信工具**。
+文档中的 `文件:行号` 引用是**指称**，指向读者自行反编译后应能找到的位置，不附带被引用内容。
+
+---
+
+## 第三方组件
+
+| 组件 | 许可 | 用途 |
+|---|---|---|
+| [pyserial](https://github.com/pyserial/pyserial) | BSD-3-Clause | 串口通信（运行时依赖，未内嵌） |
+| [jadx](https://github.com/skylot/jadx) | Apache-2.0 | 反编译（用户自行安装，未内嵌） |
+| [apktool](https://apktool.org/) | Apache-2.0 | 资源与 smali 处理（用户自行安装，未内嵌） |
+
+GNU General Public License v3.0 全文见 [LICENSE](LICENSE)。
+
+---
+
+## 文档许可
+
+`docs/` 与 `README.md` 中的文字内容以
+**Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)** 发布。
+
+代码（`src/`、`examples/`）以 **GPL-3.0** 发布。
+
+---
+
+## 免责
+
+详见 [DISCLAIMER.md](DISCLAIMER.md)。
