@@ -1,0 +1,149 @@
+# 交付报告：FIIL 耳机 LDAC 解锁程序（第四轮）
+
+> 2026-11-12 · 对应 FIIL+ 3.5.2（`com.fengeek.f002`）逆向 + 真机验证
+
+---
+
+## 一句话结论
+
+**能解锁，而且已经在真机上跑通了** —— 但"解锁"这个词在这副耳机上被厂商拆分成了两件事：
+
+| 你要的效果 | 能不能做到 | 怎么做到 | 验证状态 |
+|---|---|---|---|
+| 耳机真的用 LDAC 传音频 | ✅ 能 | `python src/fiil_ble.py switch --on` | **真机验证通过**（143=1, 144=02） |
+| 让 FIIL+ App 里的开关不再是灰的（`142=1`） | ❌ 不能离线做到 | 需要厂商服务器签发的 `activateCode` | 已被证伪：62 个候选全灭 |
+
+而**第二件事并不影响第一件事**。这是本项目这一轮最重要的发现，也是用户真正想要的东西：
+
+```
+142 = 0（未授权）  →  LDAC 开关照样能开，LDAC 照样在跑
+142 只决定 FIIL+ App 那个 UI 让不让你点开关
+```
+
+---
+
+## 交付物清单
+
+### 1. `fiil-ldac-unlock` v1.2.0（PC 端程序）
+
+https://github.com/FNKG9527/fiil-ldac-unlock
+
+| 文件 | 作用 |
+|---|---|
+| `src/fiil_ble.py` | **主力程序**：PC 纯 BLE 直连，不需要 COM 口 |
+| `src/fiil_ldac.py` | 串口 SPP 直写（F39 / F43 / F048） |
+| `src/fake_server.py` | 本地假服务器（拦 `newservice.fiil.com`） |
+| `src/patch_apk.py` | APK 重打包注入 |
+| `src/probe_guard.py` | 盲扫护栏（拦 `cid=36` 恢复出厂） |
+| `src/selftest.py` | 离线自检，59 项 |
+
+常用命令：
+
+```bash
+pip install -r requirements.txt
+
+python src/fiil_ble.py scan              # 找耳机（服务 0xFDB3 + 厂商 0x0234）
+python src/fiil_ble.py status            # 读机型 / 固件 / 电量 / LDAC 三态
+python src/fiil_ble.py backup            # 备份 license（改之前一定要做）
+python src/fiil_ble.py switch --on       # 开 LDAC ← 这就是"解锁"
+python src/fiil_ble.py switch --off
+```
+
+### 2. `fiil_mod` v3.4.3（LSPosed 模块）
+
+装在手机上，把 LDAC 开关接进系统蓝牙设置页，并额外给了一个"写入授权码"的入口。
+
+- 删掉了原来 `ldacUnlocked` 的门禁 —— 不再替已经关停的官方服务器继续锁用户
+- 新增 `LdacLicenseDialog`：可手输 32 hex 激活码（F046 写左耳一次 / F048 左右各一次）
+- 新增 16 条单测，总计 194 条全通过
+- 已装机验证：装得上、起得来、不崩
+
+---
+
+## 这一轮逆向到什么深度
+
+比之前深的地方：
+
+| 维度 | 之前 | 这一轮 |
+|---|---|---|
+| 命令空间 | 只用 App 里出现过的 | **`cid=39` 全 255 条 + `cid` 0–127 全扫** |
+| ACK 语义 | "回 00 就是成功" | **只校验长度 17 + 首字节 ∈ {0,1}**，内容不看 |
+| license 可伪 | "固件不校验"（错的） | **固件校验，写错会清掉已有解锁**，62 候选全灭 |
+| 授权码可读 | 未查 | **255 条查询无一能回读 license**，拷贝路线堵死 |
+| 日志 | 无 | **Logan AES-128-CBC 解密成功**（key=`0123456789012345`） |
+| 服务器 | "可能还能连" | **NXDOMAIN + 旧 IP 39.106.10.142:8085 timeout**，确定死亡 |
+
+### 挖出的未公开命令（App 从未调用，回包跨连接一致）
+
+```
+cid=39 cmd=0x10 → 7c 05 ee e4              疑似固件编译号
+cid=39 cmd=0x83 → d8 80 83 8a f0 18        疑似 MAC 低 6 字节倒序
+cid=39 cmd=0x86 → 03 0c
+cid=39 cmd=0x8C / 0x8D → 16B，与 138/139 同值
+cid=39 cmd=0xFE → 08 00                    疑似协议版本/能力位
+cid=35 → 固件已实现的第 5 个命令族，App 零调用
+```
+
+### 危险命令（务必绕开）
+
+`cid=36` 的 `setReset` 只设 `commandClassifyId(36)`，**不带 commandId 也不带 payload**
+（`com/fengeek/main/i/d/c.java:489-502`）。
+所以任何 `cid=36` 的 5 字节空帧都是一次**恢复出厂设置**。
+本轮盲扫时就因此把测试耳机打掉了（当场断开、停止广播，需手动重新开机）。
+
+---
+
+## 诚实的已知问题
+
+1. **测试机 Key Max 的 `142` 现在是 `0`**。这是本轮实测写坏的，且**无法恢复**
+   （备份里的 `00‖uuid` 形态正是被固件拒绝的那个）。`143=1`、`144=02` 仍正常，LDAC 仍可用。
+2. **LSPosed hook 无法在本机验证**。手机没 root（`su` 不存在、`/data/adb` 权限拒绝），
+   模块的 hook 行为只能靠代码审查 + 194 条单测保证。
+3. **`cid=35` 语义未展开**。风险高于收益，没继续扫。
+4. **`getCodecStatus`(144) 的语义是实测推断**（1=非LDAC、2=LDAC），
+   该方法在源码里是孤立方法、全工程无调用点，无法从代码侧确认。
+
+---
+
+## 复现路径（从零到开 LDAC）
+
+```bash
+git clone https://github.com/FNKG9527/fiil-ldac-unlock.git
+cd fiil-ldac-unlock
+pip install -r requirements.txt
+
+# 1. 确认耳机在广播
+python src/fiil_ble.py scan --scan-timeout 8
+#    → B0:F1:A3:A8:7A:C8  -48  svc=FDB3,mfr=0x0234  ← FIIL
+
+# 2. 读当前状态
+python src/fiil_ble.py status
+#    → 机型 F046 / Key Max / Atom，可写 license: 是
+#    → LDAC已解锁(142)=00  LDAC开关(143)=00  编解码(144)=01
+
+# 3. 开 LDAC（真机验证过的那一步）
+python src/fiil_ble.py switch --on
+#    → setLowDelay(0) → setLdacSwitch(1) → 断链（预期）→ 重连复核
+#    → 143=01 144=02 ✓
+
+# 4. 手机上确认
+#    设置 → 蓝牙 → FIIL Key Max → 音质 → 应该能看到 LDAC 在跑
+```
+
+---
+
+## 证据文件
+
+- 真机收发原始帧：`docs/evidence/ble_*.log`
+- 协议完整规格：`docs/PROTOCOL.md`（含第 11 章 BLE 通道、第 12 章未公开命令）
+- 激活链路逐行拆解：`docs/ACTIVATION_FLOW.md`
+- 版本变更记录：`CHANGELOG.md`
+- 模块侧：`D:\DeepSeek\fiil_mod\CHANGELOG.md`（v3.4.3 条目）
+
+---
+
+## 合规边界
+
+本项目只恢复用户已购买硬件上的既有功能（LDAC 解码能力是耳机硬件本身支持的），
+不提供绕过设备安全机制的手段，不含官方 APK 或反编译产物。
+`activateCode` 的离线伪造已被本项目自己证伪并如实记录 —— 这条路线不提供。
