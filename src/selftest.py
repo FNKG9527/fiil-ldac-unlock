@@ -29,6 +29,15 @@ def check(name, got, want):
         print(f"         want = {want.hex() if isinstance(want, bytes) else want}")
 
 
+def _raises_unsafe(guard, cid):
+    """probe_guard.assert_safe(cid) 是否按预期抛 UnsafeCommandError。"""
+    try:
+        guard.assert_safe(cid)
+    except guard.UnsafeCommandError:
+        return True
+    return False
+
+
 print("=" * 70)
 print(" 1. F39 / Bluetrum 组帧（对照 com.bluetrum.devicemanager.z.b）")
 print("=" * 70)
@@ -186,6 +195,43 @@ try:
 
 except ImportError as e:
     print(f"  [SKIP] fiil_ble 导入失败：{e}")
+
+print()
+print("=" * 70)
+print(" 6. 盲扫保护 / ACK 规则（对照 cid=36 事故与逐长度实测）")
+print("=" * 70)
+
+try:
+    import probe_guard as G
+
+    # cid=36 裸帧 = 恢复出厂设置，必须被拦住
+    check("probe_guard：cid=36 不安全", G.is_safe_cid(36), False)
+    check("probe_guard：cid=36 有说明", bool(G.describe(36)), True)
+    check("probe_guard：cid=36 抛 UnsafeCommandError", _raises_unsafe(G, 36), True)
+
+    # 会改状态的 cid 全部不安全
+    for _cid in (1, 2, 3, 32, 33, 34, 37, 38, 41, 44, 50):
+        check(f"probe_guard：cid={_cid} 不安全", G.is_safe_cid(_cid), False)
+
+    # cid=39 是纯查询族，安全
+    check("probe_guard：cid=39 安全", G.is_safe_cid(39), True)
+    check("probe_guard：cid=35 可发空帧探测", G.is_safe_cid(35), True)
+    check("probe_guard：cid=35 被标记为未知族", G.is_caution_cid(35), True)
+    check("probe_guard：cid=35 禁止展开子命令", G.is_safe_default(35, 1), False)
+
+    # ACK 语义：只有「长度 17 + 首字节 0/1」才回 00
+    check("ACK 规则：17 字节首字节 0x00 合法", B.license_ack_ok(bytes(17)), True)
+    _r = bytearray(17)
+    _r[0] = 0x01
+    check("ACK 规则：17 字节首字节 0x01 合法", B.license_ack_ok(bytes(_r)), True)
+    _bad = bytearray(17)
+    _bad[0] = 0x02
+    check("ACK 规则：17 字节首字节 0x02 不合法", B.license_ack_ok(bytes(_bad)), False)
+    check("ACK 规则：16 字节不合法", B.license_ack_ok(bytes(16)), False)
+    check("ACK 规则：18 字节不合法", B.license_ack_ok(bytes(18)), False)
+
+except ImportError as e:
+    print(f"  [SKIP] probe_guard 导入失败：{e}")
 
 print()
 print("=" * 70)

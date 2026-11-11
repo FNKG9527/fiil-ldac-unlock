@@ -85,6 +85,23 @@ Q_LDAC_SWITCH = 143
 Q_CODEC = 144
 Q_UNLOCK = 255           # 握手
 
+# 固件已实现、但 FIIL+ 从未调用的查询命令（2026-11-12 盲扫 cid=39 全 255 条发现）。
+# 回包在多次连接间完全一致（非 nonce），可用作设备指纹或派生种子。
+# 详见 docs/PROTOCOL.md「12. 未公开查询命令」。
+Q_UNKNOWN_10 = 0x10      # 实测回 `7c 05 ee e4`（4 字节，疑似固件编译号/内部版本）
+Q_UNKNOWN_83 = 0x83      # 实测回 `d8 80 83 8a f0 18`（6 字节，疑似 MAC 低 6 字节倒序）
+Q_UNKNOWN_86 = 0x86      # 实测回 `03 0c`（2 字节）
+Q_UNKNOWN_8C = 0x8C      # 回 16 字节，与 138/139 同值（App 只用了 138/139）
+Q_UNKNOWN_8D = 0x8D      # 回 16 字节，与 138/139 同值（App 只用了 138/139）
+Q_UNKNOWN_FE = 0xFE      # 实测回 `08 00`（疑似协议版本/能力位）
+
+# 固件已实现、但 FIIL+ 从未使用的命令类别（2026-11-12 盲扫 cid 0..127 发现）。
+# cid=35 对本工具的 5 字节空探测帧回了 ACK（payload=01），App 源码里没有任何 cid=35 的用法。
+CID_UNKNOWN_35 = 35      # 未知命令族，详情见 docs/PROTOCOL.md「12. 未公开查询命令」
+
+# 已知的 SET 命令类别（含危险命令，probe 时会跳过）
+CID_SET_RESET = 36       # ⚠️ 无 cmdId 的裸帧 = 恢复出厂设置（c.java:489-502）；会重启耳机
+
 # commandId（cid=1 写入族）
 SET_ACTIVATE_LDAC = 12   # c.java:287-302 / e.java:442-457
 SET_LDAC_SWITCH = 13     # c.java:371-385
@@ -121,6 +138,22 @@ LICENSE_CAPABLE_EAR_TYPES = {46, 48}
 
 # 单电池机型（电量只回 1 个有效字节）
 SINGLE_CELL_EAR_TYPES = {42, 46}
+
+
+def license_ack_ok(license_buf: bytes) -> bool:
+    """预测固件对这份 license payload 会不会回 ACK ``00``（格式合法）。
+
+    ⚠️ 这**不是**「激活码对不对」的判据。2026-11-12 逐长度/逐内容实测确认，
+    ``setActivationLdac`` 的 ACK 只校验两件事：
+
+    1. payload 长度必须 **恰好 17 字节**
+    2. 首字节必须 ∈ ``{0x00, 0x01}``（左耳 / 右耳）
+
+    后 16 字节内容**完全不参与校验**。所以本函数返回 True 只代表「发出去会拿到 ACK 00」，
+    唯一可信的成功判据仍然是**回读 ``142``（``getLdacUnlockStatus``）是否为 ``01``**。
+    详见 docs/PROTOCOL.md 12.4。
+    """
+    return len(license_buf) == LICENSE_LEN and license_buf[0] in (0x00, 0x01)
 
 
 # ----------------------------------------------------------------------------
@@ -486,6 +519,9 @@ def print_status(state: dict) -> int:
     print(f"  LDAC 解锁  : {describe_bool(state.get('LDAC已解锁', b''))}")
     print(f"  LDAC 开关  : {describe_bool(state.get('LDAC开关', b''))}")
     print(f"  当前编解码 : {describe_codec(state.get('当前编解码', b''))}")
+    print("-" * 60)
+    print("  提示：142（已解锁）只决定 FIIL+ App UI 是否放行开关，")
+    print("        与 143/144 是两条独立路径 —— 142=00 时 LDAC 仍可正常开启。")
     print("=" * 60)
     return 0
 
