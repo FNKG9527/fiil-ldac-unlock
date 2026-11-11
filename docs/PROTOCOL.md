@@ -27,6 +27,7 @@
 - [10. 未确认项](#10-未确认项)
 - [11. BLE GATT 直连通道（Mate 帧，1.1.0 新增）](#11-ble-gatt-直连通道mate-帧110-新增)
 - [12. 未公开命令（1.2.0 新增，盲扫发现）](#12-未公开命令120-新增盲扫发现)
+- [13. 四套帧格式对照（1.4.0 新增）](#13-四套帧格式对照140-新增)
 
 ---
 
@@ -314,36 +315,112 @@ FF 01 00 13 02 34 00 01 0C 11 01 00×15     ← 右耳
 
 ### 6.1 命令号
 
-📖 `com/fiil/sdk/gaia/father/Gaia.java:230-231, 314`
+📖 `com/fiil/sdk/gaia/father/Gaia.java:229-333`
 
-| 常量 | 值 |
-|---|---|
-| `FFCOMMAND_GetLDACBuyType` | `1967` |
-| `FFCOMMAND_SetLDACSwitchType` | `1970` |
-| `FFCOMMAND_GetLDACSwitchType` | `1971` |
-| `FFCOMMAND_SetUnlockLADC` | `1968` |
+| 常量 | 值 | 十六进制 | 源码行 |
+|---|---|---|---|
+| `FFCOMMAND_GetHeadsetUUID` | `1966` | `0x07AE` | `:229` |
+| `FFCOMMAND_GetLDACBuyType` | `1967` | `0x07AF` | `:230` |
+| `FFCOMMAND_GetLDACSwitchType` | `1971` | `0x07B3` | `:231` |
+| `FFCOMMAND_SetLDACSwitchType` | `1970` | `0x07B2` | `:314` |
+| **`FFCOMMAND_SetUnlockLADC`** | **`1968`** | **`0x07B0`** | **`:333`** |
 
 ⚠️ 注意 `LADC` 是厂商的拼写错误（不是 `LDAC`），源码里就是这个拼法。
 
-### 6.2 发送
+### 6.2 帧格式
 
-📖 `com/fiil/sdk/command/u.java`（`FiilCommandF039`）`:41-46`
+📖 `com/fiil/sdk/command/FiilCommandUtil.java:517-534 getSendBuffer`，
+偏移常量见 `com/fiil/sdk/gaia/father/Gaia.java:344-359`
+
+```
+偏移  0     1      2       3              4      5        6      7        8..
+     SOF | ver  | flags | payloadLen | vendHi vendLo | cmdHi cmdLo | payload
+```
+
+| 常量 | 值 | 说明 |
+|---|---|---|
+| `SOF` | `0xFF` | 帧首 |
+| `PROTOCOL_VERSION` | `1` | 普通帧 |
+| `NEW_PROTOCOL_VERSION` | `241`(`0xF1`) | 新协议帧 |
+| `flags` | `0` | 恒 0，源码里硬编码 |
+| `VENDOR_FF` | `564`(`0x0234`) | FIIL 厂商号 |
+| `OFFS_PAYLOAD` | `8` | payload 起始偏移 |
+
+⚠️ **`payloadLen` 只算 payload**，不含 8 字节头。这与另外两套帧的长度语义都不同：
+SDP 的长度字段含 `cmdId`（`+2`），Mate 的长度字段也含 `cmdId`。三种帧混用时最容易在这里错。
+
+逐字节示例（Gaia 1968 写左耳全零 license）：
+
+```
+FF 01 00 11 02 34 07 B0  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+│  │  │  │  └──┬─┘ └──┬─┘ └──────────── 17 字节 payload（17 = 0x11）─────────┘
+│  │  │  │     │       └ VENDOR_FF=564 / 1968
+│  │  │  │     └ payloadLen = 17
+│  │  │  └ flags = 0
+│  │  └ version = 1
+│  └ SOF
+```
+
+### 6.3 payload 布局（**本轮新解出，之前标「未展开」**）
+
+📖 `com/fiil/sdk/command/u.java:41-46`
 
 ```java
 public void setUnlockLDAC(byte[] bArr, CommandBooleanListener listener) {
     this.commandId = getGaiaIntValue("FFCOMMAND_SetUnlockLADC");   // 1968
-    this.buffer = getSendBuffer(VENDOR_FF, 1968, false, bArr);
+    this.buffer = getSendBuffer(getGaiaIntValue("VENDOR_FF"), this.commandId, false, bArr);
     getCommandQueue().a(this);
 }
 ```
 
-基类 `com/fiil/sdk/command/FiilCommandUtil.java:1303-1305` 里是空实现，实际逻辑只在子类。
+`bArr` **原样透传，没有任何额外包装**。调用方 `com/fiil/sdk/manager/FiilManager.java:1526-1531`
+也只是检查 `isGaiaConnect()` 后转调。所以 payload 就是 17 字节 license 本体，与
+F39/F43/F048 的 license 格式完全一致（`00|01` + 16 字节）。
 
-### 6.3 解析
+### 6.4 回包判据
 
-📖 `com/fiil/sdk/gaia/father/GaiaSdkCommand.java:1700-1709`
+📖 `com/fiil/sdk/gaia/father/GaiaSdkCommand.java:1986-1995`、`:1700-1709`
 
-`analysisSetLDACSwitchType` → `onResult(bArr[0] == 0)`（`0` 表示成功）。
+`analysisSetUnlockLADC` 与 `analysisSetLDACSwitchType` 都是：
+
+```java
+aVar.getBaseCommandListener().onSuccess();
+((CommandBooleanListener) aVar.getBaseCommandListener()).onResult(bArr[0] == 0);
+```
+
+→ **回包首字节为 `0` 才算成功**。
+
+⚠️ 但 `analysisGetLDACSwitchType`（`:924-933`）取的是 **`bArr[1]`**：
+
+```java
+((CommandIntegerListener) aVar.getBaseCommandListener()).onResult(bArr[1]);
+```
+
+SET 看 `[0]`、GET 看 `[1]`，两个下标不同，实现时最容易在这里错。
+
+### 6.5 命令号是怎么解析出来的
+
+📖 `com/fiil/sdk/utils/ReflectUtils.java:8-53`
+
+命令号不是硬编码，而是反射查表：
+
+- `getGaiaIntValue(name)` → `Class.forName("com.fiil.sdk.gaia.father.Gaia").getDeclaredField(name).getInt(null)`
+- `getCommandMethod(id)` → 反射读 `com.fiil.sdk.config.Config.sMap`（`Config.java:312-326` 逐条 `put`）
+
+→ 所以上面这些数值在源码里可静态确定，不必抓包。本项目的 `GAIA_CMD_*` 常量就是这么来的。
+
+### 6.6 可执行实现
+
+`src/fiil_ldac.py` 的 `gaia_frame` / `gaia_activate_frames` / `gaia_switch_frame` /
+`gaia_query_frame` / `gaia_ack_ok` / `gaia_switch_state`，以及 `--proto gaia`。
+
+```bash
+python src/fiil_ldac.py frames --proto gaia                                # 只打印帧
+python src/fiil_ldac.py activate --proto gaia --zeros --dry-run            # 离线核对
+python src/fiil_ldac.py switch --proto gaia --on --dry-run
+```
+
+⚠️ **未在真机验证**：本机只有 Key Max（F046，走 Mate/BLE），没有 F039–F043 系列耳机。
 
 ---
 
@@ -471,7 +548,7 @@ UUID：来自耳机本身，通过 FiilManager.getUUID() 或 F39 的 LDAC_UUID �
 | 全零 license 在 F043/F048 上的效果 | ❌ | 1.1.0 真机实测：F046 上**写全零会清掉解锁状态**，不是"等效激活" |
 | 写入后是否需要重启耳机 | ⚠️ | 代码里没有重启调用；F046 实测写入后立即生效（142 立刻变化），无需重启 |
 | 固件 OTA 后激活标志是否必然清除 | ⚠️ | 推测会清，未逐版本验证 |
-| Gaia 1968 的 payload 确切布局 | 📖 | 只找到 `getSendBuffer(VENDOR_FF, 1968, false, bArr)`，未展开 `getSendBuffer` |
+| Gaia 1968 的 payload 确切布局 | ✅ | 1.4.0 解出：`getSendBuffer` 原样透传 `bArr`，见 [§6.3](#63-payload-布局本轮新解出之前标未展开) |
 | `activateCode` 的生成算法 | ❌ | 62 个候选（校验和/派生/结构变体）全部被拒，含服务器私有盐，**未解出** |
 | `getCodecStatus`(144) 返回值语义 | ⚠️ | 源码里是孤立方法（无调用点），`01`=非LDAC / `02`=LDAC 是本项目真机实测推断 |
 | PID 回包第 3 字节含义 | ⚠️ | 实测 `00 2E 01`，第 2 字节 `0x2E`=46 已确认是机型号，第 3 字节未定 |
@@ -646,9 +723,43 @@ FIIL+ 只调用了协议的一小部分。为找「回读已写入 license」之
 
 ---
 
+## 13. 四套帧格式对照（1.4.0 新增）
+
+FIIL+ 里同时存在四套私有帧。它们的**长度字段含义各不相同**，混用时极易出错，
+所以集中对照一次。
+
+| | **Mate** | **SDP** | **F39 / Bluetrum** | **Gaia** |
+|---|---|---|---|---|
+| 典型机型 | F045–F053 | F043 / F048 | F039 / CC Pro2 | F039–F043（`com.fiil.sdk`） |
+| 承载 | SPP `writeMate` / BLE `0xff17` | SPP `write` / BLE `0xff17` | SPP | SPP |
+| 帧头长度 | 4–6 字节 | 8 字节 | 5 字节 | 8 字节 |
+| 长度字段**包含** | `cmdId`（`+2`） | `cmdId`（`+2`） | 仅本片 payload | **仅 payload** |
+| 命令定位 | `cid` + `cmdId` | `commandId` + `subId` | `command` + 分片序号 | `vendorId` + `commandId` |
+| 帧首 | 无固定 magic | `FF 01 00` | 无固定 magic | `FF` |
+| ACK 判据 | `payload[0] == 0` | 同 Mate | 见 §3 | `payload[0] == 0`（GET 看 `[1]`） |
+| 实现 | `fiil_protocol.build_frame` | `fiil_ldac.sdp_frame` | `fiil_ldac.f39_frames` | `fiil_ldac.gaia_frame` |
+
+逐字节并列（都是「写左耳全零 license」这一件事）：
+
+```
+Mate  : 00 01 01 00 13 0C 11 00 00 … （4 字节头 + [13 0C] + [11] + 17B）
+SDP   : FF 01 00 13 02 34 00 01 0C 11 00 00 … （8 字节头 + 17B）
+F39   : 00 01 01 10 0F 0C 11 00 00 …（分片，第 0 片 15 字节）
+Gaia  : FF 01 00 11 02 34 07 B0 00 00 … （8 字节头 + 17B）
+```
+
+注意 SDP 与 Gaia 的头都是 8 字节、都有 `FF 01 00` 与 `02 34`，但：
+
+- SDP 第 3 字节是 `payloadLen + 2`（含 `cmdId`），随后紧跟 `cmdId`、`subId`、`len`
+- Gaia 第 3 字节是 `payloadLen`（**不含**命令段），命令在 `[6][7]`，payload 从 `[8]` 开始
+
+两者**只有 `payloadLen` 差 2 与命令字段位置不同**，肉眼容易看混。
+
+---
+
 ## 参考
 
 - [ACTIVATION_FLOW.md](ACTIVATION_FLOW.md) — 激活链路逐步拆解
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md) — 常见问题
-- [../src/fiil_ldac.py](../src/fiil_ldac.py) — 协议的可执行实现
+- [../src/fiil_ldac.py](../src/fiil_ldac.py) — 协议的可执行实现（Mate / SDP / F39 / Gaia 四套帧）
 - [../src/fiil_ble.py](../src/fiil_ble.py) — PC 端 BLE 直连实现（方案五）

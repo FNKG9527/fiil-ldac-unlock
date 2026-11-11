@@ -112,7 +112,19 @@ python src/fiil_ldac.py switch --port COM5 --on --proto f39
 python src/fiil_ldac.py read --port COM5            # verify
 ```
 
-`--proto`: `f39` (CC Pro2 / F039), `f43` (F043), `f048` (F048).
+`--proto` (four frame families, see the comparison table in
+[docs/PROTOCOL.md](../PROTOCOL.md)):
+
+| Value | Models | Header | Length field covers |
+|---|---|---|---|
+| `f39` | CC Pro2 / F039 (Bluetrum fragments) | 5 bytes | this fragment's payload only |
+| `f43` | F043 (SDP) | 8 bytes | `cmdId` too (`+2`) |
+| `f048` | F048 (SDP) | 8 bytes | `cmdId` too (`+2`) |
+| `gaia` | F039–F043 legacy (`com.fiil.sdk`) | 8 bytes | **payload only** |
+
+⚠️ `gaia` is new in 1.4.0 and has only been verified at the frame level (byte-for-byte
+against the decompiled source); there is no F039–F043 hardware here to test it on.
+The LDAC switch command id for the `f048` channel is still not located in the source.
 
 ### 3. Local fake server
 

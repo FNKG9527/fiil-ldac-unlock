@@ -189,7 +189,7 @@ pip install pyserial
 python src/fiil_ldac.py list
 
 # 2. 只看帧，不连接（先确认机型对得上）
-python src/fiil_ldac.py frames --proto f39
+python src/fiil_ldac.py frames --proto f39      # 也可 --proto gaia / f43 / f048
 
 # 3. 备份当前 license（重要，写坏了还能恢复）
 python src/fiil_ldac.py backup --port COM5
@@ -204,7 +204,17 @@ python src/fiil_ldac.py switch --port COM5 --on --proto f39
 python src/fiil_ldac.py read --port COM5
 ```
 
-`--proto` 取值：`f39`（CC Pro2 / F039）、`f43`（F043）、`f048`（F048）。
+`--proto` 取值（**四套帧**，详见 [docs/PROTOCOL.md §13](docs/PROTOCOL.md) 的对照表）：
+
+| 取值 | 对应机型 | 帧头 | 长度字段含义 |
+|---|---|---|---|
+| `f39` | CC Pro2 / F039（Bluetrum 分片） | 5 字节 | 仅本片 payload |
+| `f43` | F043（SDP） | 8 字节 | 含 `cmdId`（`+2`） |
+| `f048` | F048（SDP） | 8 字节 | 含 `cmdId`（`+2`） |
+| `gaia` | F039–F043 老机型（`com.fiil.sdk`） | 8 字节 | **仅 payload** |
+
+⚠️ `gaia` 是 1.4.0 新加的，**只做过组帧层面的验证**（与反编译源码逐字节一致），
+没有 F039–F043 系列耳机可上机测试。`f048` 的 LDAC 开关命令号仍未在源码中定位。
 
 ### 方案三：本地假服务器
 
@@ -292,7 +302,7 @@ fiil-ldac-unlock/
 ├── src/
 │   ├── fiil_gui.py         # 图形界面（tkinter）：扫描 / 读状态 / 开 LDAC / 写授权码
 │   ├── fiil_ble.py         # 方案五：PC 端纯 BLE 直连（bleak，无需 COM 口）
-│   ├── fiil_ldac.py        # 方案二：串口直写（F39 / F43 / F048 三套帧）
+│   ├── fiil_ldac.py        # 方案二：串口直写（Mate / SDP / F39 / Gaia 四套帧）
 │   ├── fake_server.py      # 方案三：本地假服务器
 │   ├── patch_apk.py        # 方案四：APK 重打包注入
 │   ├── probe_guard.py      # 盲扫护栏：拦住 cid=36 恢复出厂等危险命令
@@ -300,7 +310,7 @@ fiil-ldac-unlock/
 ├── tools/
 │   └── build_exe.py        # 把 GUI 打包成 Windows exe（默认 --onedir）
 ├── docs/
-│   ├── PROTOCOL.md         # 三套帧格式 + BLE 通道的完整规格
+│   ├── PROTOCOL.md         # 四套帧格式 + BLE 通道的完整规格
 │   ├── ACTIVATION_FLOW.md  # 激活链路逐步拆解（含文件行号）
 │   ├── TROUBLESHOOTING.md  # 常见问题
 │   ├── evidence/           # 真机收发帧日志

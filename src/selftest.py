@@ -80,6 +80,28 @@ check("F43 右耳 license", F.sdp_frame(F.F43_CMD_CONFIG_EXTEND, 4, bytes([1]) +
 check("F43 打开 LDAC", F.f43_switch_frame(True),
       bytes.fromhex("ff01000302340904040101"))
 
+# Gaia 组帧：与 com/fiil/sdk/command/FiilCommandUtil.java:517-534 getSendBuffer 一致
+# 8 字节头 SOF|ver|flags|payloadLen|vendHi vendLo|cmdHi cmdLo，payloadLen 只算 payload
+check("Gaia 1968 左耳 license（17B payload）", F.gaia_activate_frames(bytes(17), bytes([1]) + bytes(16))[0],
+      bytes.fromhex("ff010011023407b0") + bytes(17))
+check("Gaia 1968 右耳首字节 0x01",
+      F.gaia_activate_frames(bytes(17), bytes([1]) + bytes(16))[1][8], 0x01)
+check("Gaia 1970 打开 LDAC", F.gaia_switch_frame(True),
+      bytes.fromhex("ff010001023407b201"))
+check("Gaia 1971 查询开关（空 payload，8 字节）", F.gaia_query_frame(F.GAIA_CMD_GET_LDAC_SWITCH),
+      bytes.fromhex("ff010000023407b3"))
+check("Gaia 1966 查询 UUID", F.gaia_query_frame(F.GAIA_CMD_GET_HEADSET_UUID),
+      bytes.fromhex("ff010000023407ae"))
+check("Gaia 1967 查询购买类型", F.gaia_query_frame(F.GAIA_CMD_GET_LDAC_BUY_TYPE),
+      bytes.fromhex("ff010000023407af"))
+check("Gaia VENDOR_FF = 564", F.GAIA_VENDOR_FF, 564)
+check("Gaia 头长 8", F.GAIA_HEADER_LEN, 8)
+check("Gaia ACK 首字节 0 算成功", F.gaia_ack_ok(bytes([0x00])), True)
+check("Gaia ACK 首字节非 0 算失败", F.gaia_ack_ok(bytes([0x01])), False)
+check("Gaia ACK 空回包算失败", F.gaia_ack_ok(b""), False)
+check("Gaia 1971 回包取 [1]（不是 [0]）", F.gaia_switch_state(bytes([0x00, 0x01])), 1)
+check("Gaia 1971 回包过短返回 None", F.gaia_switch_state(bytes([0x00])), None)
+
 print()
 print("=" * 70)
 print(" 3. license 解析")

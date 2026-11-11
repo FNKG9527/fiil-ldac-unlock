@@ -5,6 +5,68 @@
 
 ---
 
+## [1.4.0] - 2026-11-12
+
+**Gaia 通道版。** 之前 `--proto` 只有 `f39`/`f43`/`f048` 三套，走 `com.fiil.sdk`
+的老机型（F039/F040/F041/F042/F043）一直是空白。这次把 Gaia over SPP 的组帧、
+命令号和回包判据全部解出来并实现，`--proto gaia` 可用。
+
+### 新增
+
+- `src/fiil_ldac.py` 新增 `gaia_frame(vendor_id, command_id, payload, new_protocol)`
+  - 组帧依据 `com/fiil/sdk/command/FiilCommandUtil.java:517-534 getSendBuffer`，逐字段一致：
+    `SOF | ver | flags | payloadLen | vendHi vendLo | cmdHi cmdLo | payload`
+  - 偏移常量来自 `com/fiil/sdk/gaia/father/Gaia.java:345-355`（`OFFS_SOF=0`、`OFFS_VERSION=1`、
+    `OFFS_FLAGS=2`、`OFFS_PAYLOAD_LENGTH=3`、`OFFS_VENDOR_ID_H=4`、`OFFS_COMMAND_ID_H=6`、
+    `OFFS_PAYLOAD=8`）
+  - ⚠️ `payloadLen` **只算 payload**，不含 8 字节头 —— 与 SDP（长度含命令段）和 Mate
+    （长度含 cmdId）的含义都不同，三种帧混用时最容易在这里错
+- 新增 `gaia_activate_frames` / `gaia_switch_frame` / `gaia_query_frame` /
+  `gaia_ack_ok` / `gaia_switch_state`
+- 新增 Gaia 命令号常量（`Gaia.java:229-333` 逐条核对）：
+  `GAIA_CMD_GET_HEADSET_UUID=1966`、`GAIA_CMD_GET_LDAC_BUY_TYPE=1967`、
+  **`GAIA_CMD_SET_UNLOCK_LDAC=1968`**、`GAIA_CMD_SET_LDAC_SWITCH=1970`、
+  `GAIA_CMD_GET_LDAC_SWITCH=1971`；`GAIA_VENDOR_FF=564`、`GAIA_SOF=0xFF`、
+  `GAIA_PROTOCOL_VERSION=1`、`GAIA_NEW_PROTOCOL_VERSION=0xF1(=241)`
+- `--proto` 增加 `gaia` 取值，`activate` / `switch` / `frames` 三个子命令均已接入
+
+### 逆向补充（本轮新解出的三处，之前是未知项）
+
+1. **Gaia 1968 的 payload 布局**（CHANGELOG 1.0.0 曾标「未展开」）：
+   `u.java:41-46` 的 `setUnlockLDAC(byte[] bArr, …)` 是
+   `getSendBuffer(VENDOR_FF, 1968, false, bArr)` —— **bArr 原样透传，没有任何额外包装**。
+   调用方 `FiilManager.java:1526-1531` 也只是转调。所以 payload 就是 17 字节 license 本体。
+2. **Gaia SET 回包判据**：`GaiaSdkCommand.java:1986-1995 analysisSetUnlockLADC` 与
+   `:1700-1709 analysisSetLDACSwitchType` 都是 `onResult(bArr[0] == 0)` —— **首字节为 0 才算成功**。
+   但 `:924-933 analysisGetLDACSwitchType` 取的是 **`bArr[1]`**，两个下标不同，容易踩。
+3. **命令号→解析函数的映射**由反射查表：`ReflectUtils.java:8-23 getCommandMethod` 反射读
+   `com.fiil.sdk.config.Config.sMap`（`Config.java:312-326` 逐条 `put`），
+   `getGaiaIntValue`/`getGaiaByteValue`（`ReflectUtils.java:25-53`）反射读 `Gaia` 的静态字段。
+   所以这些数值在源码里是可静态确定的，不必抓包。
+
+### 修正
+
+- `activate --dry-run` / `switch --dry-run` 之前仍强制要求 `--port` 或 `--addr`，
+  耳机不在身边时没法核对帧。现在 `--dry-run` 不再要求设备。
+- `switch` 新增 `--dry-run`（之前只有 `activate` 有）。四个协议都能离线看帧。
+
+### 测试
+
+- `src/selftest.py` 新增第 2 节末尾 13 项 Gaia 检查：1968 左右耳组帧逐字节、
+  1970/1971/1966/1967 帧、`VENDOR_FF=564`、头长 8、ACK 首字节 0/非 0/空包三种判据、
+  1971 回包取 `[1]` 与长度不足返回 `None`。
+- 自检总数：**86 通过，0 失败**（1.3.0 是 73）。
+
+### 已知问题
+
+- Gaia 通道**未在真机验证**。本机只有 Key Max（F046，走 Mate/BLE），
+  没有 F039/F040/F041/F042/F043 系列耳机，`--proto gaia` 目前只有组帧层面的正确性
+  （与反编译源码逐字节一致）。
+- `fiil_ldac.py` 的 `read` 子命令仍只实现 F39。Gaia 侧已备好 1966/1967/1971 三个查询帧，
+  但没有做回包解析与状态打印。
+
+---
+
 ## [1.3.0] - 2026-11-12
 
 **图形界面版。** 之前交付的都是命令行，这次补上真正的「程序」：一个能双击打开的

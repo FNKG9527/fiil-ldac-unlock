@@ -9,6 +9,7 @@
     python examples/dump_frames.py --proto f39
     python examples/dump_frames.py --proto f43
     python examples/dump_frames.py --proto f048
+    python examples/dump_frames.py --proto gaia
 """
 
 import argparse
@@ -29,7 +30,7 @@ def show(title, frames):
 
 def main():
     ap = argparse.ArgumentParser(description="打印 FIIL 各协议帧（不连接设备）")
-    ap.add_argument("--proto", choices=["f39", "f43", "f048", "all"], default="all")
+    ap.add_argument("--proto", choices=["f39", "f43", "f048", "gaia", "all"], default="all")
     args = ap.parse_args()
 
     left, right = F.build_zero_pair()
@@ -60,9 +61,20 @@ def main():
     if args.proto in ("f048", "all"):
         show("F048 写 license（左/右各一帧）", F.f048_activate_frames(left, right))
 
+    if args.proto in ("gaia", "all"):
+        show("Gaia 1968 写 license（左/右各一帧）", F.gaia_activate_frames(left, right))
+        show("Gaia 1970 开 LDAC", [F.gaia_switch_frame(True)])
+        show("Gaia 1970 关 LDAC", [F.gaia_switch_frame(False)])
+        for name, cmd in [
+            ("查开关状态", F.GAIA_CMD_GET_LDAC_SWITCH),
+            ("查耳机 UUID", F.GAIA_CMD_GET_HEADSET_UUID),
+            ("查购买类型", F.GAIA_CMD_GET_LDAC_BUY_TYPE),
+        ]:
+            show(f"Gaia {name} ({cmd})", [F.gaia_query_frame(cmd)])
+
     print()
     print("说明：以上 license 内容全为 0，等效官方 CC Pro2 长按后门。")
-    print("     真实写入时可改用 --code \"<左32hex>,<右32hex>\"。")
+    print('     真实写入时可改用 --code "<左32hex>,<右32hex>"。')
     print("     帧格式出处见 docs/PROTOCOL.md。")
 
 

@@ -54,35 +54,50 @@ for _s in (sys.stdout, sys.stderr):
 # ----------------------------------------------------------------------------
 
 # F39 / Bluetrum
-F39_COMMAND_APP_SETTING = 0x01   # com.bluetrum.devicemanager.f39.request.F39AppSettingRequest -> super((byte)1)
-F39_COMMAND_LDAC_UUID = 0x27     # F39LdacUuidRequest -> super((byte)39)
-F39_TYPE_REQUEST = 0x01          # Request.f16329c = 1
-F39_TYPE_RESPONSE = 0x02         # Command.COMMAND_TYPE_RESPONSE
+F39_COMMAND_APP_SETTING = (
+    0x01  # com.bluetrum.devicemanager.f39.request.F39AppSettingRequest -> super((byte)1)
+)
+F39_COMMAND_LDAC_UUID = 0x27  # F39LdacUuidRequest -> super((byte)39)
+F39_TYPE_REQUEST = 0x01  # Request.f16329c = 1
+F39_TYPE_RESPONSE = 0x02  # Command.COMMAND_TYPE_RESPONSE
 F39_TYPE_NOTIFICATION = 0x03
-F39_MAX_PAYLOAD = 15             # com.bluetrum.devicemanager.z: this(new a0(15))
+F39_MAX_PAYLOAD = 15  # com.bluetrum.devicemanager.z: this(new a0(15))
 
-F39_SETTING_ACTIVATE_LDAC = 12   # F39AppSettingRequest.SETTING_TYPE_ACTIVATE_LDAC
-F39_SETTING_LDAC = 13            # F39AppSettingRequest.SETTING_TYPE_LDAC
+F39_SETTING_ACTIVATE_LDAC = 12  # F39AppSettingRequest.SETTING_TYPE_ACTIVATE_LDAC
+F39_SETTING_LDAC = 13  # F39AppSettingRequest.SETTING_TYPE_LDAC
 
-F39_QUERY_ACTIVATION = 0x8E      # LDAC_ACTIVATION_STATE = -114
-F39_QUERY_OPEN = 0x8F            # LDAC_OPEN_STATE       = -113
-F39_QUERY_LEFT_UUID = 0x8A       # LDAC_LEFT_UUID        = -118
-F39_QUERY_RIGHT_UUID = 0x8B      # LDAC_RIGHT_UUID       = -117
+F39_QUERY_ACTIVATION = 0x8E  # LDAC_ACTIVATION_STATE = -114
+F39_QUERY_OPEN = 0x8F  # LDAC_OPEN_STATE       = -113
+F39_QUERY_LEFT_UUID = 0x8A  # LDAC_LEFT_UUID        = -118
+F39_QUERY_RIGHT_UUID = 0x8B  # LDAC_RIGHT_UUID       = -117
 
 # F43 / F048 (SDP over same SPP UUID)
-SDP_HEAD = bytes([0xFF, 0x01, 0x00])   # SOF, version, flags
-SDP_MAGIC = bytes([0x02, 0x34])        # 0x02 = ?, 0x34 = 52
+SDP_HEAD = bytes([0xFF, 0x01, 0x00])  # SOF, version, flags
+SDP_MAGIC = bytes([0x02, 0x34])  # 0x02 = ?, 0x34 = 52
 
-F43_CMD_CONFIG_EXTEND = 2311     # com.fengeek.utils.l1.v0.i.f33100i
-F43_CMD_EXECUTE_EXTEND = 2308    # com.fengeek.utils.l1.v0.i.f33097f
-F43_PROTO_LEFT_LDAC = 4          # d.setLeftLDAC -> new d(4, 40)
-F43_PROTO_RIGHT_LDAC = 4         # d.setRightLDAC -> new d(4, 46)
-F43_PROTO_LDAC_SWITCH = 4        # f.setLdac -> new f(4, 30)
+F43_CMD_CONFIG_EXTEND = 2311  # com.fengeek.utils.l1.v0.i.f33100i
+F43_CMD_EXECUTE_EXTEND = 2308  # com.fengeek.utils.l1.v0.i.f33097f
+F43_PROTO_LEFT_LDAC = 4  # d.setLeftLDAC -> new d(4, 40)
+F43_PROTO_RIGHT_LDAC = 4  # d.setRightLDAC -> new d(4, 46)
+F43_PROTO_LDAC_SWITCH = 4  # f.setLdac -> new f(4, 30)
 
-F048_CLASSIFY_ID = 1             # com.fengeek.main.i.d.e.setActivationLdac
+F048_CLASSIFY_ID = 1  # com.fengeek.main.i.d.e.setActivationLdac
 F048_CMD_ACTIVATE = 12
 
-LICENSE_LEN = 17                 # 17 字节 = 1 字节耳别 + 16 字节 UUID
+# Gaia over SPP（F039/F040/F041/F042/F043 等走 com.fiil.sdk 的机型）
+# 常量值见 com/fiil/sdk/gaia/father/Gaia.java:229-333
+GAIA_SOF = 0xFF  # Gaia.java:357  SOF = -1
+GAIA_PROTOCOL_VERSION = 1  # Gaia.java:356
+GAIA_NEW_PROTOCOL_VERSION = 0xF1  # Gaia.java:344 (=241)
+GAIA_VENDOR_FF = 564  # Gaia.java:359  VENDOR_FF = 564 (0x0234)
+GAIA_CMD_GET_HEADSET_UUID = 1966  # Gaia.java:229
+GAIA_CMD_GET_LDAC_BUY_TYPE = 1967  # Gaia.java:230
+GAIA_CMD_SET_UNLOCK_LDAC = 1968  # Gaia.java:333  FFCOMMAND_SetUnlockLADC
+GAIA_CMD_SET_LDAC_SWITCH = 1970  # Gaia.java:314
+GAIA_CMD_GET_LDAC_SWITCH = 1971  # Gaia.java:231
+GAIA_HEADER_LEN = 8  # Gaia.java:349  OFFS_PAYLOAD = 8
+
+LICENSE_LEN = 17  # 17 字节 = 1 字节耳别 + 16 字节 UUID
 
 # ----------------------------------------------------------------------------
 # 帧构造
@@ -106,7 +121,7 @@ def f39_frames(command: int, payload: bytes, seq: int = 0, max_payload: int = F3
     out = []
     s = seq & 0x0F
     for idx in range(total):
-        chunk = payload[idx * max_payload:(idx + 1) * max_payload]
+        chunk = payload[idx * max_payload : (idx + 1) * max_payload]
         head = bytes([s, command, F39_TYPE_REQUEST, (((total - 1) << 4) & 0xFF) | (idx & 0x0F), len(chunk)])
         out.append(head + chunk)
         s = (s + 1) & 0x0F
@@ -132,21 +147,25 @@ def f39_query_frames(what: int, seq: int = 0):
 def sdp_frame(command_id: int, sub_id: int, values: bytes) -> bytes:
     """SDP 帧（com.fengeek.utils.l1.v0.a.getPayload 与 com.fengeek.main.i.b.write 同构）：
 
-        FF 01 00 | (len(values)+2) | 02 34 | cmdHi cmdLo | subId | len(values) | values
+    FF 01 00 | (len(values)+2) | 02 34 | cmdHi cmdLo | subId | len(values) | values
     """
     n = len(values)
-    return (SDP_HEAD
-            + bytes([(n + 2) & 0xFF])
-            + SDP_MAGIC
-            + bytes([(command_id >> 8) & 0xFF, command_id & 0xFF])
-            + bytes([sub_id & 0xFF, n & 0xFF])
-            + values)
+    return (
+        SDP_HEAD
+        + bytes([(n + 2) & 0xFF])
+        + SDP_MAGIC
+        + bytes([(command_id >> 8) & 0xFF, command_id & 0xFF])
+        + bytes([sub_id & 0xFF, n & 0xFF])
+        + values
+    )
 
 
 def f43_activate_frames(left: bytes, right: bytes):
     """F43：左耳 commandId=2311 subId=4；右耳 commandId=2311 subId=4（靠 values[0] 区分）"""
-    return [sdp_frame(F43_CMD_CONFIG_EXTEND, F43_PROTO_LEFT_LDAC, left),
-            sdp_frame(F43_CMD_CONFIG_EXTEND, F43_PROTO_RIGHT_LDAC, right)]
+    return [
+        sdp_frame(F43_CMD_CONFIG_EXTEND, F43_PROTO_LEFT_LDAC, left),
+        sdp_frame(F43_CMD_CONFIG_EXTEND, F43_PROTO_RIGHT_LDAC, right),
+    ]
 
 
 def f43_switch_frame(on: bool):
@@ -155,8 +174,68 @@ def f43_switch_frame(on: bool):
 
 def f048_activate_frames(left: bytes, right: bytes):
     """F048 type=3：classifyId=1, cmdId=12，左右各发一次"""
-    return [sdp_frame(F048_CLASSIFY_ID, F048_CMD_ACTIVATE, left),
-            sdp_frame(F048_CLASSIFY_ID, F048_CMD_ACTIVATE, right)]
+    return [
+        sdp_frame(F048_CLASSIFY_ID, F048_CMD_ACTIVATE, left),
+        sdp_frame(F048_CLASSIFY_ID, F048_CMD_ACTIVATE, right),
+    ]
+
+
+def gaia_frame(vendor_id: int, command_id: int, payload: bytes = b"", new_protocol: bool = False) -> bytes:
+    """Gaia 帧（com/fiil/sdk/command/FiilCommandUtil.java:517-534 getSendBuffer）。
+
+        SOF | ver | flags | payloadLen | vendorHi vendorLo | cmdHi cmdLo | payload
+        [0]  [1]   [2]     [3]          [4]      [5]       [6]     [7]     [8:]
+
+    OFFS_* 见 com/fiil/sdk/gaia/father/Gaia.java:345-355，全 0 起始偏移。
+    注意 payloadLen **只算 payload**，不含 8 字节头——与 SDP/Mate 的长度含义都不同。
+    """
+    return (
+        bytes(
+            [
+                GAIA_SOF,
+                GAIA_NEW_PROTOCOL_VERSION if new_protocol else GAIA_PROTOCOL_VERSION,
+                0x00,  # flags 恒 0
+                len(payload) & 0xFF,  # OFFS_PAYLOAD_LENGTH
+                (vendor_id >> 8) & 0xFF,
+                vendor_id & 0xFF,  # OFFS_VENDOR_ID_H / _L
+                (command_id >> 8) & 0xFF,
+                command_id & 0xFF,  # OFFS_COMMAND_ID_H / _L
+            ]
+        )
+        + payload
+    )
+
+
+def gaia_activate_frames(left: bytes, right: bytes):
+    """Gaia 1968：payload 就是 17 字节 license 原样透传（u.java:41-46），左右各发一次。"""
+    return [
+        gaia_frame(GAIA_VENDOR_FF, GAIA_CMD_SET_UNLOCK_LDAC, left),
+        gaia_frame(GAIA_VENDOR_FF, GAIA_CMD_SET_UNLOCK_LDAC, right),
+    ]
+
+
+def gaia_switch_frame(on: bool):
+    """Gaia 1970：payload 单字节布尔（u.java:35-37）。"""
+    return gaia_frame(GAIA_VENDOR_FF, GAIA_CMD_SET_LDAC_SWITCH, bytes([1 if on else 0]))
+
+
+def gaia_query_frame(command_id: int):
+    """Gaia 查询帧：payload 为空。1966=UUID、1967=BuyType、1971=Switch。"""
+    return gaia_frame(GAIA_VENDOR_FF, command_id, b"")
+
+
+def gaia_ack_ok(payload: bytes) -> bool:
+    """Gaia SET 回包判据（GaiaSdkCommand.java:1986-1995 / :1700-1709）：
+
+    onResult(bArr[0] == 0) —— 回包首字节为 0 才算成功。
+    GetLDACSwitchType 的 handler（:924-933）取的是 bArr[1]，注意两者下标不同。
+    """
+    return len(payload) >= 1 and payload[0] == 0x00
+
+
+def gaia_switch_state(payload: bytes):
+    """Gaia 1971 回包取 bArr[1]（GaiaSdkCommand.java:932）；长度不足返回 None。"""
+    return payload[1] if len(payload) >= 2 else None
 
 
 # ----------------------------------------------------------------------------
@@ -200,11 +279,13 @@ class Transport:
     def open(self):
         if self.port:
             import serial  # pyserial
+
             self._ser = serial.Serial(self.port, self.baud, timeout=self.timeout)
             time.sleep(0.3)
             self._ser.reset_input_buffer()
         else:
             import socket
+
             self._sock = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
             self._sock.settimeout(self.timeout)
             # Windows 的 RFCOMM connect 需要 (bdaddr, channel)，channel 由 SDP 决定；
@@ -280,8 +361,8 @@ class F39Reader:
             ln = self.buf[4]
             if len(self.buf) < 5 + ln:
                 break
-            payload = self.buf[5:5 + ln]
-            self.buf = self.buf[5 + ln:]
+            payload = self.buf[5 : 5 + ln]
+            self.buf = self.buf[5 + ln :]
             out.append((seq, cmd, ctype, total, index, payload))
         return out
 
@@ -350,6 +431,13 @@ def cmd_frames(args):
         left, right = build_zero_pair()
         _print_frames("F43 写左右耳 license", f43_activate_frames(left, right))
         _print_frames("F43 打开 LDAC", [f43_switch_frame(True)])
+    elif args.proto == "gaia":
+        left, right = build_zero_pair()
+        _print_frames("Gaia 1968 写左右耳 license", gaia_activate_frames(left, right))
+        _print_frames("Gaia 1970 打开 LDAC", [gaia_switch_frame(True)])
+        _print_frames("Gaia 1971 查询开关状态", [gaia_query_frame(GAIA_CMD_GET_LDAC_SWITCH)])
+        _print_frames("Gaia 1966 查询耳机 UUID", [gaia_query_frame(GAIA_CMD_GET_HEADSET_UUID)])
+        _print_frames("Gaia 1967 查询购买类型", [gaia_query_frame(GAIA_CMD_GET_LDAC_BUY_TYPE)])
     else:
         left, right = build_zero_pair()
         _print_frames("F048 写左右耳 license", f048_activate_frames(left, right))
@@ -442,8 +530,12 @@ def cmd_activate(args):
         sw, seq = f39_switch_frames(True, seq)
         plan = [("左耳 license", lf), ("右耳 license", rf), ("打开 LDAC", sw)]
     elif args.proto == "f43":
-        plan = [("左右耳 license", f43_activate_frames(left, right)),
-                ("打开 LDAC", [f43_switch_frame(True)])]
+        plan = [("左右耳 license", f43_activate_frames(left, right)), ("打开 LDAC", [f43_switch_frame(True)])]
+    elif args.proto == "gaia":
+        plan = [
+            ("左右耳 license（Gaia 1968）", gaia_activate_frames(left, right)),
+            ("打开 LDAC（Gaia 1970）", [gaia_switch_frame(True)]),
+        ]
     else:
         plan = [("左右耳 license", f048_activate_frames(left, right))]
 
@@ -469,7 +561,7 @@ def cmd_activate(args):
         if resp:
             print("\n[响应]")
             for _seq, cmd, ctype, total, index, payload in resp:
-                print(f"  cmd=0x{cmd:02X} type={ctype} [{index+1}/{total}] {_hex(payload)}")
+                print(f"  cmd=0x{cmd:02X} type={ctype} [{index + 1}/{total}] {_hex(payload)}")
         else:
             print("\n[!] 没收到响应（耳机可能不回 ACK，也可能是没写进去）")
             print("    建议立刻跑一次 read 确认激活状态。")
@@ -479,15 +571,23 @@ def cmd_activate(args):
 
 
 def cmd_switch(args):
+    if args.proto == "f39":
+        frames, _ = f39_switch_frames(args.on, 0)
+    elif args.proto == "f43":
+        frames = [f43_switch_frame(args.on)]
+    elif args.proto == "gaia":
+        frames = [gaia_switch_frame(args.on)]
+    else:
+        print("F048 通道的 LDAC 开关命令号未在源码中定位，请用 f39/f43/gaia。")
+        return 2
+
+    if getattr(args, "dry_run", False):
+        _print_frames(f"LDAC {'开' if args.on else '关'}（{args.proto}）", frames)
+        print("\n[=] --dry-run，未发送。")
+        return 0
+
     t = _open(args)
     try:
-        if args.proto == "f39":
-            frames, _ = f39_switch_frames(args.on, 0)
-        elif args.proto == "f43":
-            frames = [f43_switch_frame(args.on)]
-        else:
-            print("F048 通道的 LDAC 开关命令号未在源码中定位，请用 f39/f43。")
-            return 2
         for f in frames:
             t.write(f)
         print(f"[+] 已发送 LDAC {'开' if args.on else '关'}")
@@ -534,8 +634,12 @@ def main(argv=None):
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
-    ap.add_argument("--proto", choices=["f39", "f43", "f048"], default="f39",
-                    help="帧格式，默认 f39（CC Pro2 / F039 系列）")
+    ap.add_argument(
+        "--proto",
+        choices=["f39", "f43", "f048", "gaia"],
+        default="f39",
+        help="帧格式，默认 f39（CC Pro2 / F039 系列）；gaia 用于 com.fiil.sdk 老机型",
+    )
     ap.add_argument("--port", help="串口，如 COM5（Windows 配对后自动生成）")
     ap.add_argument("--addr", help="蓝牙地址，如 AA:BB:CC:DD:EE:FF（直连 RFCOMM，不推荐）")
     ap.add_argument("--baud", type=int, default=115200)
@@ -559,13 +663,19 @@ def main(argv=None):
     g = p.add_mutually_exclusive_group(required=True)
     g.add_argument("--on", action="store_true")
     g.add_argument("--off", action="store_true")
+    p.add_argument("--dry-run", action="store_true", help="只打印帧")
     p.set_defaults(func=cmd_switch)
 
     args = ap.parse_args(argv)
     if hasattr(args, "off") and args.off:
         args.on = False
-    if not args.port and not args.addr and args.cmd in ("read", "backup", "activate", "switch"):
-        print("必须给 --port COMx 或 --addr AA:BB:...")
+    if (
+        not args.port
+        and not args.addr
+        and args.cmd in ("read", "backup", "activate", "switch")
+        and not getattr(args, "dry_run", False)
+    ):
+        print("必须给 --port COMx 或 --addr AA:BB:...（--dry-run 除外）")
         return 2
     return args.func(args)
 
