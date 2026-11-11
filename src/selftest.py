@@ -5,6 +5,7 @@
 
 全部 PASS 说明 fiil_ldac.py 组出来的字节和 App 发出去的字节一致。
 """
+
 import os
 import re
 import sys
@@ -46,15 +47,20 @@ print("=" * 70)
 # 分片上限 15，所以拆成 15 + 4 两帧
 left = bytes(17)
 frames, seq = F.f39_activate_frames(left, 0)
-check("左耳 license 第 0 帧（5 头 + 15 payload）", frames[0],
-      bytes([0x00, 0x01, 0x01, 0x10, 0x0F]) + bytes([0x0C, 0x11]) + bytes(13))
-check("左耳 license 第 1 帧（5 头 + 4 payload）", frames[1],
-      bytes([0x01, 0x01, 0x01, 0x11, 0x04]) + bytes(4))
+check(
+    "左耳 license 第 0 帧（5 头 + 15 payload）",
+    frames[0],
+    bytes([0x00, 0x01, 0x01, 0x10, 0x0F]) + bytes([0x0C, 0x11]) + bytes(13),
+)
+check("左耳 license 第 1 帧（5 头 + 4 payload）", frames[1], bytes([0x01, 0x01, 0x01, 0x11, 0x04]) + bytes(4))
 
 right = bytes([0x01]) + bytes(16)
 frames, seq = F.f39_activate_frames(right, 2)
-check("右耳 license 第 0 帧", frames[0],
-      bytes([0x02, 0x01, 0x01, 0x10, 0x0F]) + bytes([0x0C, 0x11, 0x01]) + bytes(12))
+check(
+    "右耳 license 第 0 帧",
+    frames[0],
+    bytes([0x02, 0x01, 0x01, 0x10, 0x0F]) + bytes([0x0C, 0x11, 0x01]) + bytes(12),
+)
 
 # 开 LDAC：payload = 0D 01 01
 frames, seq = F.f39_switch_frames(True, 4)
@@ -73,27 +79,46 @@ print("=" * 70)
 print(" 2. SDP / F43 组帧（对照 com.fengeek.utils.l1.v0.a.getPayload）")
 print("=" * 70)
 
-check("F43 左耳 license", F.sdp_frame(F.F43_CMD_CONFIG_EXTEND, 4, bytes(17)),
-      bytes.fromhex("ff010013023409070411" + "00" * 17))
-check("F43 右耳 license", F.sdp_frame(F.F43_CMD_CONFIG_EXTEND, 4, bytes([1]) + bytes(16)),
-      bytes.fromhex("ff010013023409070411" + "01" + "00" * 16))
-check("F43 打开 LDAC", F.f43_switch_frame(True),
-      bytes.fromhex("ff01000302340904040101"))
+check(
+    "F43 左耳 license",
+    F.sdp_frame(F.F43_CMD_CONFIG_EXTEND, 4, bytes(17)),
+    bytes.fromhex("ff010013023409070411" + "00" * 17),
+)
+check(
+    "F43 右耳 license",
+    F.sdp_frame(F.F43_CMD_CONFIG_EXTEND, 4, bytes([1]) + bytes(16)),
+    bytes.fromhex("ff010013023409070411" + "01" + "00" * 16),
+)
+check("F43 打开 LDAC", F.f43_switch_frame(True), bytes.fromhex("ff01000302340904040101"))
+
+# F048 开关：e.java:573-588 setLdacSwitch —— cid=1、cmdId=13、payload={0/1}，
+# 与 F046（c.java:371-385）逐字节相同，区别只在承载（F048 走 SDP）
+check("F048 打开 LDAC", F.f048_switch_frame(True), bytes.fromhex("ff01000302340001 0d0101".replace(" ", "")))
+check("F048 关闭 LDAC", F.f048_switch_frame(False), bytes.fromhex("ff01000302340001 0d0100".replace(" ", "")))
+check("F048 开关与 F046 的 cid/cmdId 相同", (F.F048_CLASSIFY_ID, F.F39_SETTING_LDAC), (1, 13))
 
 # Gaia 组帧：与 com/fiil/sdk/command/FiilCommandUtil.java:517-534 getSendBuffer 一致
 # 8 字节头 SOF|ver|flags|payloadLen|vendHi vendLo|cmdHi cmdLo，payloadLen 只算 payload
-check("Gaia 1968 左耳 license（17B payload）", F.gaia_activate_frames(bytes(17), bytes([1]) + bytes(16))[0],
-      bytes.fromhex("ff010011023407b0") + bytes(17))
-check("Gaia 1968 右耳首字节 0x01",
-      F.gaia_activate_frames(bytes(17), bytes([1]) + bytes(16))[1][8], 0x01)
-check("Gaia 1970 打开 LDAC", F.gaia_switch_frame(True),
-      bytes.fromhex("ff010001023407b201"))
-check("Gaia 1971 查询开关（空 payload，8 字节）", F.gaia_query_frame(F.GAIA_CMD_GET_LDAC_SWITCH),
-      bytes.fromhex("ff010000023407b3"))
-check("Gaia 1966 查询 UUID", F.gaia_query_frame(F.GAIA_CMD_GET_HEADSET_UUID),
-      bytes.fromhex("ff010000023407ae"))
-check("Gaia 1967 查询购买类型", F.gaia_query_frame(F.GAIA_CMD_GET_LDAC_BUY_TYPE),
-      bytes.fromhex("ff010000023407af"))
+check(
+    "Gaia 1968 左耳 license（17B payload）",
+    F.gaia_activate_frames(bytes(17), bytes([1]) + bytes(16))[0],
+    bytes.fromhex("ff010011023407b0") + bytes(17),
+)
+check("Gaia 1968 右耳首字节 0x01", F.gaia_activate_frames(bytes(17), bytes([1]) + bytes(16))[1][8], 0x01)
+check("Gaia 1970 打开 LDAC", F.gaia_switch_frame(True), bytes.fromhex("ff010001023407b201"))
+check(
+    "Gaia 1971 查询开关（空 payload，8 字节）",
+    F.gaia_query_frame(F.GAIA_CMD_GET_LDAC_SWITCH),
+    bytes.fromhex("ff010000023407b3"),
+)
+check(
+    "Gaia 1966 查询 UUID", F.gaia_query_frame(F.GAIA_CMD_GET_HEADSET_UUID), bytes.fromhex("ff010000023407ae")
+)
+check(
+    "Gaia 1967 查询购买类型",
+    F.gaia_query_frame(F.GAIA_CMD_GET_LDAC_BUY_TYPE),
+    bytes.fromhex("ff010000023407af"),
+)
 check("Gaia VENDOR_FF = 564", F.GAIA_VENDOR_FF, 564)
 check("Gaia 头长 8", F.GAIA_HEADER_LEN, 8)
 check("Gaia ACK 首字节 0 算成功", F.gaia_ack_ok(bytes([0x00])), True)
@@ -124,27 +149,38 @@ print("=" * 70)
 
 try:
     import patch_apk as P
+
     # 反编译产物默认在 <仓库根>/build/apktool_out，可用 FIIL_PREDECOMPILED_SMALI 直接指定文件
     smali = os.environ.get("FIIL_PREDECOMPILED_SMALI") or os.path.join(
-        P.PREDECOMPILED, "smali_classes3", "com", "fengeek", "main",
-        "f048", "fragment", "F048HomeFragment.smali")
+        P.PREDECOMPILED,
+        "smali_classes3",
+        "com",
+        "fengeek",
+        "main",
+        "f048",
+        "fragment",
+        "F048HomeFragment.smali",
+    )
     if os.path.isfile(smali):
         text = open(smali, encoding="utf-8").read()
         pat = r"\.method[^\n]*\bo\(\)V\n"
         m = re.search(pat, text)
         check("在 F048HomeFragment 找到 o()V", bool(m), True)
-        body = text[m.end():]
+        body = text[m.end() :]
         lm = re.search(r"^\s*\.locals\s+\d+", body, re.M)
         check("o()V 有 .locals 指令", bool(lm), True)
-        text2 = re.sub(r"(\.method[^\n]*\bo\(\)V\n\s*)\.locals\s+\d+",
-                       r"\g<1>.locals 100", text, count=1)
+        text2 = re.sub(r"(\.method[^\n]*\bo\(\)V\n\s*)\.locals\s+\d+", r"\g<1>.locals 100", text, count=1)
         check("能把 .locals 提到 100", ".locals 100" in text2, True)
         snip = P.SMALI_SNIPPET.format(code="00" * 16 + "," + "00" * 16, type_hex="3")
         check("注入片段含 return-void", "return-void" in snip, True)
-        check("注入片段引用 UnlockLDACActivity",
-              "Lcom/fengeek/main/heat_info_fragment/ldac/UnlockLDACActivity;" in snip, True)
-        check("注入片段用 Fragment.getContext",
-              "Landroidx/fragment/app/Fragment;->getContext()" in snip, True)
+        check(
+            "注入片段引用 UnlockLDACActivity",
+            "Lcom/fengeek/main/heat_info_fragment/ldac/UnlockLDACActivity;" in snip,
+            True,
+        )
+        check(
+            "注入片段用 Fragment.getContext", "Landroidx/fragment/app/Fragment;->getContext()" in snip, True
+        )
         check("注入片段带 type=3", "const/4 v95, 0x3" in snip, True)
     else:
         print("  [SKIP] 没找到反编译目录，跳过（不影响其它检查）")
@@ -160,23 +196,33 @@ try:
     import fiil_ble as B
 
     # Mate 组帧：与 com/fengeek/main/i/b.java:writeMate 一致
-    check("BLE Mate 握手 setUnlock",
-          B.build_mate_frame(B.CID_QUERY, B.Q_UNLOCK, bytes([0x02, 0x34]), 0),
-          bytes.fromhex("00270100 04ff0202 34".replace(" ", "")))
-    check("BLE Mate 查询帧 getLdacUnlock(142)",
-          B.build_mate_frame(B.CID_QUERY, B.Q_LDAC_UNLOCK, b"", 2),
-          bytes.fromhex("0227010002 8e00".replace(" ", "")))
-    check("BLE Mate 写开关 setLdacSwitch(1)",
-          B.build_mate_frame(B.CID_SET_PARAM, B.SET_LDAC_SWITCH, bytes([1]), 6),
-          bytes.fromhex("06010100 030d0101".replace(" ", "")))
-    check("BLE Mate 写 license 17 字节",
-          B.build_mate_frame(B.CID_SET_PARAM, B.SET_ACTIVATE_LDAC, bytes(17), 0),
-          bytes.fromhex("00010100 130c 11".replace(" ", "")) + bytes(17))
+    check(
+        "BLE Mate 握手 setUnlock",
+        B.build_mate_frame(B.CID_QUERY, B.Q_UNLOCK, bytes([0x02, 0x34]), 0),
+        bytes.fromhex("00270100 04ff0202 34".replace(" ", "")),
+    )
+    check(
+        "BLE Mate 查询帧 getLdacUnlock(142)",
+        B.build_mate_frame(B.CID_QUERY, B.Q_LDAC_UNLOCK, b"", 2),
+        bytes.fromhex("0227010002 8e00".replace(" ", "")),
+    )
+    check(
+        "BLE Mate 写开关 setLdacSwitch(1)",
+        B.build_mate_frame(B.CID_SET_PARAM, B.SET_LDAC_SWITCH, bytes([1]), 6),
+        bytes.fromhex("06010100 030d0101".replace(" ", "")),
+    )
+    check(
+        "BLE Mate 写 license 17 字节",
+        B.build_mate_frame(B.CID_SET_PARAM, B.SET_ACTIVATE_LDAC, bytes(17), 0),
+        bytes.fromhex("00010100 130c 11".replace(" ", "")) + bytes(17),
+    )
 
     # SDP 组帧：与 FIILPeripheral.java:483-505 一致
-    check("BLE SDP 组帧（F048 写 license）",
-          B.build_sdp_frame(1, 12, bytes(17)),
-          bytes.fromhex("ff010013023400010c 11".replace(" ", "")) + bytes(17))
+    check(
+        "BLE SDP 组帧（F048 写 license）",
+        B.build_sdp_frame(1, 12, bytes(17)),
+        bytes.fromhex("ff010013023400010c 11".replace(" ", "")) + bytes(17),
+    )
 
     # 解帧：用真机实测回包逐条验证
     real = bytes.fromhex("07270200038e01 01".replace(" ", ""))
@@ -201,8 +247,7 @@ try:
     check("解帧：非法帧头重同步后仍能解出", len(frames), 1)
 
     # 机型识别：earType 在 buff[1]，不是 buff[0]
-    check("PID 回包 00 2E 01 → earType 索引 1 = 46",
-          bytes.fromhex("002e01")[B.PID_EAR_TYPE_INDEX], 46)
+    check("PID 回包 00 2E 01 → earType 索引 1 = 46", bytes.fromhex("002e01")[B.PID_EAR_TYPE_INDEX], 46)
 
     # license 形态
     check("BLE license 左耳首字节 0x00", B.build_license(bytes(16), 0x00)[0], 0x00)
@@ -265,11 +310,9 @@ try:
 
     _one = "0123456789abcdef0123456789abcdef"
     check("解析：单段 32 hex", len(B.parse_activate_codes(_one)), 1)
-    check("解析：单段内容正确", B.parse_activate_codes(_one)[0],
-          bytes.fromhex(_one))
+    check("解析：单段内容正确", B.parse_activate_codes(_one)[0], bytes.fromhex(_one))
     check("解析：两段逗号分隔", len(B.parse_activate_codes(f"{_one},{_one}")), 2)
-    check("解析：大写也认", B.parse_activate_codes(_one.upper())[0],
-          bytes.fromhex(_one))
+    check("解析：大写也认", B.parse_activate_codes(_one.upper())[0], bytes.fromhex(_one))
     check("解析：允许前后空白", len(B.parse_activate_codes(f"  {_one}  ")), 1)
 
     for _bad, _why in (

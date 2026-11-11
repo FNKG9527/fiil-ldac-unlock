@@ -124,7 +124,8 @@ python src/fiil_ldac.py read --port COM5            # verify
 
 ⚠️ `gaia` is new in 1.4.0 and has only been verified at the frame level (byte-for-byte
 against the decompiled source); there is no F039–F043 hardware here to test it on.
-The LDAC switch command id for the `f048` channel is still not located in the source.
+The LDAC switch for `f048` *is* located (`e.java:573-588`, cid=1 / cmdId=13 — byte-for-byte
+identical to F046, only carried over SDP instead of Mate), but is likewise untested on hardware.
 
 ### 3. Local fake server
 

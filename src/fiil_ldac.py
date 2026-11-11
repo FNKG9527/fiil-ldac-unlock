@@ -180,6 +180,15 @@ def f048_activate_frames(left: bytes, right: bytes):
     ]
 
 
+def f048_switch_frame(on: bool):
+    """F048 的 LDAC 开关（e.java:573-588 setLdacSwitch）。
+
+    cid=1、cmdId=13、payload={0/1}——与 F046（c.java:371-385）逐字节相同，
+    区别只在承载：F046 走 Mate 组帧，F048 走 SDP。
+    """
+    return sdp_frame(F048_CLASSIFY_ID, F39_SETTING_LDAC, bytes([1 if on else 0]))
+
+
 def gaia_frame(vendor_id: int, command_id: int, payload: bytes = b"", new_protocol: bool = False) -> bytes:
     """Gaia 帧（com/fiil/sdk/command/FiilCommandUtil.java:517-534 getSendBuffer）。
 
@@ -575,10 +584,14 @@ def cmd_switch(args):
         frames, _ = f39_switch_frames(args.on, 0)
     elif args.proto == "f43":
         frames = [f43_switch_frame(args.on)]
+    elif args.proto == "f048":
+        # e.java:573-588 setLdacSwitch：cid=1、cmdId=13、payload={0/1}，
+        # 与 F046（c.java:371-385）逐字节相同，只是走 SDP 组帧而不是 Mate。
+        frames = [f048_switch_frame(args.on)]
     elif args.proto == "gaia":
         frames = [gaia_switch_frame(args.on)]
     else:
-        print("F048 通道的 LDAC 开关命令号未在源码中定位，请用 f39/f43/gaia。")
+        print(f"未知协议：{args.proto}")
         return 2
 
     if getattr(args, "dry_run", False):

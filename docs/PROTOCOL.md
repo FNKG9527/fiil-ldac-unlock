@@ -299,7 +299,36 @@ FF 01 00 13 02 34 00 01 0C 11 00 00×16     ← 左耳（27 字节）
 FF 01 00 13 02 34 00 01 0C 11 01 00×15     ← 右耳
 ```
 
-### 5.3 连接前提
+### 5.3 LDAC 开关
+
+📖 `com/fengeek/main/i/d/e.java:573-588`
+
+```java
+public void setLdacSwitch(boolean z, com.fengeek.main.i.d.i.b bVar) {
+    if (bVar == null) { Log.d(f31884g, "getChangLian: infoListener 为空"); return; }
+    if (!com.fengeek.main.i.a.f31837c) { Log.d(f31884g, "setUnlock: 耳机未连接"); return; }
+    com.fengeek.main.i.c.a aVar = new com.fengeek.main.i.c.a();
+    aVar.setCommandClassifyId(1);
+    aVar.setCommandId(13);
+    aVar.setBuffer(new byte[]{ z ? (byte) 1 : (byte) 0 });
+    aVar.setInfoListener(bVar);
+    a.getInstance().addCommand(aVar);
+}
+```
+
+→ **cid=1 / cmdId=13 / payload={0,1}，与 F046 的 `c.java:371-385` 逐字节相同**，
+区别只在承载：F046 走 Mate 组帧，F048 走 SDP。
+
+```
+FF 01 00 03 02 34 00 01 0D 01 01     ← 开（11 字节）
+FF 01 00 03 02 34 00 01 0D 01 00     ← 关
+```
+
+> ⚠️ 早期版本曾误判「F048 的源码里没有 setLdacSwitch」，是因为只搜了 `c.java`（F046 类）。
+> 七个机型族分别是 `b.java`=F045、`c.java`=F046、`d.java`=F047、`e.java`=F048、
+> `f.java`=F049、`g.java`=F051、`h.java`=F053，方法名高度同构但**不在同一个文件里**。
+
+### 5.4 连接前提
 
 📖 `com/fengeek/main/i/b.java` 是 `BluetoothStream`：
 `connectStream(handler, socket, earType)` 启动读线程（`:216-222`），
@@ -746,6 +775,15 @@ Mate  : 00 01 01 00 13 0C 11 00 00 … （4 字节头 + [13 0C] + [11] + 17B）
 SDP   : FF 01 00 13 02 34 00 01 0C 11 00 00 … （8 字节头 + 17B）
 F39   : 00 01 01 10 0F 0C 11 00 00 …（分片，第 0 片 15 字节）
 Gaia  : FF 01 00 11 02 34 07 B0 00 00 … （8 字节头 + 17B）
+```
+
+同一件事（开 LDAC）：
+
+```
+Mate  : 00 01 01 00 03 0D 01 01
+SDP   : FF 01 00 03 02 34 00 01 0D 01 01      ← F048
+F39   : 00 01 01 00 03 0D 01 01                ← 与 Mate 相同
+Gaia  : FF 01 00 01 02 34 07 B2 01
 ```
 
 注意 SDP 与 Gaia 的头都是 8 字节、都有 `FF 01 00` 与 `02 34`，但：
