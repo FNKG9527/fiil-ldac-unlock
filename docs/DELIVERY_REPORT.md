@@ -1,6 +1,7 @@
-# 交付报告：FIIL 耳机 LDAC 解锁程序（第四轮）
+# 交付报告：FIIL 耳机 LDAC 解锁程序（第五轮）
 
 > 2026-11-12 · 对应 FIIL+ 3.5.2（`com.fengeek.f002`）逆向 + 真机验证
+> 程序版本：**v1.4.0**
 
 ---
 
@@ -24,30 +25,39 @@
 
 ## 交付物清单
 
-### 1. `fiil-ldac-unlock` v1.2.0（PC 端程序）
+### 1. `fiil-ldac-unlock` v1.4.0（PC 端程序）
 
 https://github.com/FNKG9527/fiil-ldac-unlock
 
 | 文件 | 作用 |
 |---|---|
+| **`src/fiil_gui.py`** | **图形界面**：双击即用，扫描 / 读状态 / 开 LDAC / 写授权码全在按钮上 |
 | `src/fiil_ble.py` | **主力程序**：PC 纯 BLE 直连，不需要 COM 口 |
-| `src/fiil_ldac.py` | 串口 SPP 直写（F39 / F43 / F048） |
+| `src/fiil_ldac.py` | 串口 SPP 直写（Mate / SDP / F39 / **Gaia** 四套帧） |
 | `src/fake_server.py` | 本地假服务器（拦 `newservice.fiil.com`） |
 | `src/patch_apk.py` | APK 重打包注入 |
 | `src/probe_guard.py` | 盲扫护栏（拦 `cid=36` 恢复出厂） |
-| `src/selftest.py` | 离线自检，59 项 |
+| `src/selftest.py` | 离线自检，86 项 |
+| `tools/build_exe.py` | 打包成 Windows exe（默认 `--onedir`） |
 
 常用命令：
 
 ```bash
 pip install -r requirements.txt
 
+python src/fiil_gui.py                   # 图形界面（推荐）
 python src/fiil_ble.py scan              # 找耳机（服务 0xFDB3 + 厂商 0x0234）
 python src/fiil_ble.py status            # 读机型 / 固件 / 电量 / LDAC 三态
 python src/fiil_ble.py backup            # 备份 license（改之前一定要做）
 python src/fiil_ble.py switch --on       # 开 LDAC ← 这就是"解锁"
 python src/fiil_ble.py switch --off
+
+python tools/build_exe.py --clean        # 打包 exe
 ```
+
+⚠️ 打包别用 `--onefile`：bootloader 解包到 `%TEMP%\_MEIxxxxx` 时会报
+`Could not create temporary directory!` 然后直接退出（受限令牌环境下必现）。
+`--onedir` 不需要解包，可正常启动。
 
 ### 2. `fiil_mod` v3.4.3（LSPosed 模块）
 
@@ -72,6 +82,36 @@ python src/fiil_ble.py switch --off
 | 授权码可读 | 未查 | **255 条查询无一能回读 license**，拷贝路线堵死 |
 | 日志 | 无 | **Logan AES-128-CBC 解密成功**（key=`0123456789012345`） |
 | 服务器 | "可能还能连" | **NXDOMAIN + 旧 IP 39.106.10.142:8085 timeout**，确定死亡 |
+| 通道覆盖 | `f39` / `f43` / `f048` 三套 | **新增 Gaia over SPP**，四套帧全部可组（v1.4.0） |
+| 可用形态 | 只有命令行 | **桌面图形界面 + exe**（v1.3.0） |
+
+### Gaia 通道（v1.4.0 新解出，之前标「未展开」）
+
+`com.fiil.sdk` 那套老 SDK 走的是 Gaia over SPP，之前只知道有 `OFFS_` 常量、
+组帧函数没展开。这次解出三件事：
+
+```
+帧格式  SOF|ver|flags|payloadLen|vendHi vendLo|cmdHi cmdLo|payload
+        (FiilCommandUtil.java:517-534 getSendBuffer，偏移见 Gaia.java:344-359)
+
+1968    bArr 原样透传，无额外包装 (u.java:41-46)
+        → payload 就是 17 字节 license 本体，与 F39/F43/F048 一致
+
+回包    SET 判 bArr[0]==0 (GaiaSdkCommand.java:1986-1995 / :1700-1709)
+        GET 判 bArr[1]   (:924-933)  ← 下标不同！
+```
+
+命令号：`1966` GetHeadsetUUID、`1967` GetLDACBuyType、**`1968` SetUnlockLADC**、
+`1970` SetLDACSwitchType、`1971` GetLDACSwitchType；厂商号 `564`(`0x0234`)。
+
+```bash
+python src/fiil_ldac.py frames --proto gaia
+python src/fiil_ldac.py activate --proto gaia --zeros --dry-run
+python src/fiil_ldac.py switch --proto gaia --on --dry-run
+```
+
+⚠️ **Gaia 通道未在真机验证**。本机只有 Key Max（F046，走 Mate/BLE），
+没有 F039–F043 系列耳机，目前只有组帧层面的一致性（与反编译源码逐字节相同）。
 
 ### 挖出的未公开命令（App 从未调用，回包跨连接一致）
 
@@ -110,6 +150,11 @@ cid=35 → 固件已实现的第 5 个命令族，App 零调用
 3. **`cid=35` 语义未展开**。风险高于收益，没继续扫。
 4. **`getCodecStatus`(144) 的语义是实测推断**（1=非LDAC、2=LDAC），
    该方法在源码里是孤立方法、全工程无调用点，无法从代码侧确认。
+5. **Gaia 通道未真机验证**。F039–F043 系列耳机本机没有，`--proto gaia`
+   只有组帧层面的一致性。
+6. **`f048` 通道的 LDAC 开关命令号未定位**。`setLdacSwitch` 只在 F046/F045 等
+   Mate 族的 `c.java` 里找到，F048 的 `e.java` 里没有对应方法，
+   所以 `switch --proto f048` 会直接报「未定位」并返回 2。
 
 ---
 
@@ -119,6 +164,9 @@ cid=35 → 固件已实现的第 5 个命令族，App 零调用
 git clone https://github.com/FNKG9527/fiil-ldac-unlock.git
 cd fiil-ldac-unlock
 pip install -r requirements.txt
+
+# 0. 图形界面：双击 / 命令行都能起
+python src/fiil_gui.py
 
 # 1. 确认耳机在广播
 python src/fiil_ble.py scan --scan-timeout 8
@@ -138,12 +186,21 @@ python src/fiil_ble.py switch --on
 #    设置 → 蓝牙 → FIIL Key Max → 音质 → 应该能看到 LDAC 在跑
 ```
 
+耳机不在身边也能核对帧：
+
+```bash
+python src/fiil_ble.py unlock --code 00112233445566778899aabbccddeeff --dry-run
+python src/fiil_ldac.py frames --proto gaia
+python examples/dump_frames.py --proto all
+```
+
 ---
 
 ## 证据文件
 
 - 真机收发原始帧：`docs/evidence/ble_*.log`
-- 协议完整规格：`docs/PROTOCOL.md`（含第 11 章 BLE 通道、第 12 章未公开命令）
+- 图形界面截图：`docs/evidence/gui_screenshot.png`
+- 协议完整规格：`docs/PROTOCOL.md`（含第 11 章 BLE 通道、第 12 章未公开命令、第 13 章四套帧对照）
 - 激活链路逐行拆解：`docs/ACTIVATION_FLOW.md`
 - 版本变更记录：`CHANGELOG.md`
 - 模块侧：`D:\DeepSeek\fiil_mod\CHANGELOG.md`（v3.4.3 条目）
