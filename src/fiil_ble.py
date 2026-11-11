@@ -564,7 +564,7 @@ async def cmd_scan(args) -> int:
 
 
 async def cmd_models(_args) -> int:
-    print("机型表（earType 来自 PID 查询回包首字节）")
+    print(f"机型表（earType 取 PID 查询回包中下标 {PID_EAR_TYPE_INDEX} 的字节，不是首字节）")
     print("=" * 78)
     for et, name in sorted(MODELS.items()):
         ok = "可写 license" if et in LICENSE_CAPABLE_EAR_TYPES else "-"
