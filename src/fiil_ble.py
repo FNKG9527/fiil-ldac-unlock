@@ -136,6 +136,25 @@ MODELS = {
 # b/d/f/g/h 五个类（F045/F047/F049/F051/F053）里根本没有这个方法。
 LICENSE_CAPABLE_EAR_TYPES = {46, 48}
 
+# 有「授权/解锁」这一概念的机型：既实现了 setActivationLdac，也实现了
+# getLdacUnlockStatus（cid=39 cmdId=142）。F049/F051/F053 虽然能开关 LDAC、
+# 也能读开关状态，但**没有 getLdacUnlockStatus**，App 里也没有任何激活入口
+# —— 这三族根本不存在授权概念，不存在「解锁」这个动作。
+#
+# 2026-11-12 全机型核对（com/fengeek/main/i/d/{b,c,d,e,f,g,h}.java）：
+#   机型族   setLdacSwitch  getLdacSwitchStatus  getLdacUnlockStatus  setActivationLdac
+#   F045(b)  ✗              ✗                    ✗                    ✗
+#   F046(c)  ✓              ✓                    ✓                    ✓
+#   F047(d)  ✗              ✗                    ✗                    ✗
+#   F048(e)  ✓              ✓                    ✓                    ✓
+#   F049(f)  ✓              ✓                    ✗                    ✗
+#   F051(g)  ✓              ✓                    ✗                    ✗
+#   F053(h)  ✓              ✓                    ✗                    ✗
+UNLOCK_CONCEPT_EAR_TYPES = {46, 48}
+
+# 能开关 LDAC（不管有没有授权概念）的机型族。
+LDAC_SWITCH_CAPABLE_EAR_TYPES = {46, 48, 49, 51, 53}
+
 # 单电池机型（电量只回 1 个有效字节）
 SINGLE_CELL_EAR_TYPES = {42, 46}
 

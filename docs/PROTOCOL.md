@@ -22,6 +22,7 @@
 - [5. F048 通道](#5-f048-通道)
 - [6. Gaia 老协议通道](#6-gaia-老协议通道)
 - [7. license 的构造](#7-license-的构造)
+  - [7.3 哪些机型存在「授权」这件事](#73-哪些机型存在授权这件事2026-11-12-全机型核对)
 - [8. 服务器接口](#8-服务器接口)
 - [9. 机型路由表](#9-机型路由表)
 - [10. 未确认项](#10-未确认项)
@@ -540,6 +541,49 @@ UUID：来自耳机本身，通过 FiilManager.getUUID() 或 F39 的 LDAC_UUID �
 即 **LDAC 开关本身不需要 license**，license 只影响官方 App 的 UI 是否放行那个开关
 （`SettingsControlCard.kt:184` 的 `isEnabled = ... && s.ldacUnlocked` 就是这个 UI 门）。
 所以「开 LDAC」可以在未授权状态下离线完成，「写 license」是另一件事。
+
+### 7.3 哪些机型存在「授权」这件事（2026-11-12 全机型核对）
+
+📖 `com/fengeek/main/i/d/{b,c,d,e,f,g,h}.java`（依次对应 F045/F046/F047/F048/F049/F051/F053）
+
+七个机型族里，LDAC 相关方法的实现情况**并不一致**：
+
+| 机型族 | `setLdacSwitch` | `getLdacSwitchStatus`<br>(39/143) | `getLdacUnlockStatus`<br>(39/142) | `setActivationLdac`<br>(1/12) | 有激活 UI |
+|---|:---:|:---:|:---:|:---:|:---:|
+| F045 (`b.java`) | ✗ | ✗ | ✗ | ✗ | ✗ |
+| **F046** (`c.java`) | ✓ | ✓ | ✓ | ✓ | ✓ |
+| F047 (`d.java`) | ✗ | ✗ | ✗ | ✗ | ✗ |
+| **F048** (`e.java`) | ✓ | ✓ | ✓ | ✓ | ✓ |
+| F049 (`f.java`) | ✓ | ✓ | **✗** | ✗ | ✗ |
+| F051 (`g.java`) | ✓ | ✓ | **✗** | ✗ | ✗ |
+| F053 (`h.java`) | ✓ | ✓ | **✗** | ✗ | ✗ |
+
+三条可直接引用的结论：
+
+1. **只有 F046 与 F048 存在「授权/解锁」这个概念。** 它们同时实现了写 license（`setActivationLdac`）
+   和读授权状态（`getLdacUnlockStatus` / 142），App 里也有激活入口（「激活」按钮 → 服务器 → 激活码页面）。
+2. **F049 / F051 / F053 能开关 LDAC，但没有授权概念。** 这三个类里**没有 `getLdacUnlockStatus`，
+   也没有 `setActivationLdac`**，`f049`/`f051`/`f053` 三个包下更搜不到任何「激活」字样或
+   `UnlockLDACActivity` / `LDACProductRegistActivity` 引用 —— 用户在这三款耳机上从来不会看到「激活」按钮。
+   换句话说，**它们的 LDAC 是直接可用的，不需要解锁**。
+3. **F045 / F047 完全没有 LDAC 相关命令**，连开关都没有（硬件层面就不支持）。
+
+`setLdacSwitch` 的实现本身（`c.java:371-385` / `e.java:573-588` / `f.java:527-542` /
+`g.java:462-477` / `h.java:528-543`）五处**逐字节相同**：
+
+```java
+if (bVar == null) { ... return; }              // 回调为空
+if (!com.fengeek.main.i.a.f31837c) { ... }     // 耳机未连接
+aVar.setCommandClassifyId(1);
+aVar.setCommandId(13);
+aVar.setBuffer(new byte[]{ z ? (byte) 1 : (byte) 0 });
+```
+
+→ **没有任何一处检查授权状态**。授权只影响官方 App 的界面显示，不影响命令是否下发。
+
+> 对 F048 用户的意义：`142=0` 时 App 把开关控件整个 `setVisibility(8)` 隐藏了
+> （`F048HomeFragment.java:729`），但底层 `setLdacSwitch` 依旧只检查「是否已连接」。
+> 也就是说 **F048 的 LDAC 开关同样不需要 license**，只是官方 App 不给你点。
 
 ---
 

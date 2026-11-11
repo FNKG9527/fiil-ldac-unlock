@@ -5,6 +5,59 @@
 
 ---
 
+## [1.4.2] - 2026-11-12
+
+**机型矩阵版。** 把「哪些机型有授权这件事」查清楚了，顺带回答了 issue #1 的两个问题。
+
+### 新发现
+
+- **只有 F046 / F048 存在「授权/解锁」概念。** 七个机型族逐类核对
+  （`com/fengeek/main/i/d/{b,c,d,e,f,g,h}.java` → F045/F046/F047/F048/F049/F051/F053）：
+  - F046 (`c.java`)、F048 (`e.java`)：同时有 `setLdacSwitch`、`getLdacSwitchStatus`、
+    `getLdacUnlockStatus`(142)、`setActivationLdac`(1/12)，App 里也有激活入口
+  - **F049 (`f.java`) / F051 (`g.java`) / F053 (`h.java`)：能开关 LDAC，但没有
+    `getLdacUnlockStatus`、没有 `setActivationLdac`，三个包下搜不到任何「激活」字样或
+    `UnlockLDACActivity` / `LDACProductRegistActivity` 引用 —— 这三款的 LDAC 直接可用，不存在解锁动作**
+  - F045 (`b.java`) / F047 (`d.java`)：连 LDAC 命令都没有
+- **`setLdacSwitch` 五处实现逐字节相同，且都没有授权检查。** 只检查「回调非空」与
+  「`com.fengeek.main.i.a.f31837c`（耳机已连接）」，然后 `cid=1` / `cmdId=13` / payload `{0/1}`。
+  → 授权只影响官方 App 的界面显示，不影响命令能否下发。
+- **F048 在 `142=0` 时是把控件整个隐藏，不是禁用。** `F048HomeFragment.java:729`
+  `f24504r.setVisibility(bArr[0] == 0 ? 8 : 0)` —— `View.GONE`。用户看不到开关，会误以为
+  「必须解锁才能用」，但底层 `setLdacSwitch`（`e.java:573-588`）根本没有授权分支。
+
+### 新增
+
+- `src/fiil_ble.py` 增加两张机型能力表：
+  - `UNLOCK_CONCEPT_EAR_TYPES = {46, 48}` —— 有「授权/解锁」概念的机型
+  - `LDAC_SWITCH_CAPABLE_EAR_TYPES = {46, 48, 49, 51, 53}` —— 能开关 LDAC 的机型
+  （原有的 `LICENSE_CAPABLE_EAR_TYPES` 保持不变，语义是「能写 license」）
+- `docs/PROTOCOL.md` 新增 **§7.3 哪些机型存在「授权」这件事**，含七族四方法的完整矩阵、
+  `setLdacSwitch` 逐字节相同的证据、以及「F048 是把控件隐藏而不是禁用」的说明。
+
+### 回答 issue #1 的两个提问
+
+issue #1（F048 / GS Links / fw 1.3.3.0）里问了两个问题，现在都能从源码直接给答案：
+
+1. **「是否存在『生效/commit』的第二条命令？」——不存在。**
+   全仓库 `setActivationLdac` 只有 6 个调用点，全部是「写 license」本身：
+   `F046HomeFragment.java:95`（取消激活，全零）、`F046UnlockLDACActivity.java:116`（单次写左耳、
+   首字节固定 0）、`UnlockLDACActivity.java:238/244`（type=3 左右各一次）、
+   定义处 `c.java:287` / `e.java:442`。没有任何跟随的 commit/apply 命令。
+   所以「提示成功但 142 仍为 0」只说明 **license 内容没通过固件校验**，不是漏了第二步。
+2. **「F048 的 license 是 MAC/签名校验吗？算法或密钥有来源吗？」——是内容校验，但算法不可离线还原。**
+   F046 上累计 62 个候选（含自洽的 `00‖设备UUID`、全零、15 种校验和、43 种派生）全部被拒，
+   且写错会**清掉**已有解锁状态。客户端零生成逻辑（139 处 `activateCode` 全部来自服务器 JSON）、
+   原生层无相关算法（29 个 `.so` 里 `libBluetoothData.so` 只做数组切分）、
+   服务器 `newservice.fiil.com` 已 NXDOMAIN。**只能拿到真实 activateCode 才能写成功。**
+
+### 测试
+
+- `python src/selftest.py` → 93 通过，0 失败
+- `python -m ruff check src examples tools` → All checks passed!
+
+---
+
 ## [1.4.1] - 2026-11-12
 
 **修正版。** 1.4.0 里关于 F048 的两条结论都是错的，这次连帧带文档一起改掉。
