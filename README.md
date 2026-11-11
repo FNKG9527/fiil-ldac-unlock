@@ -44,7 +44,13 @@ FIIL 耳机的 **LDAC 高清解码**需要先在官方 App（FIIL+）里点一�
         按 Intent 里的 "type" 分派到四条蓝牙通道写进耳机
 ```
 
-**关键：第 ④ 步不联网。只要能造出一个 `activateCode` 字符串塞进 Intent，服务器死不死都无所谓。**
+**关键：第 ④ 步不联网。** 但 1.1.0 的真机实测补上了一个更关键的事实：
+**第 ④ 步写进去的 license 会被固件校验，写错内容反而会清掉已有解锁状态**（见下方 FAQ）。
+所以「服务器死了」并不意味着「本地随便造个码就能替代」，这条链路真正的断点在第 ③ 步的
+**服务器侧签名**，而不在第 ④ 步。
+
+**另一条更重要的实测结论**：`142`（授权）与 `143`（开关）在 F046 上是**两条独立路径**，
+LDAC 开关本身并不需要 license。详见下方 FAQ「那 LDAC 还能打开吗」。
 
 `UnlockLDACActivity` 的四条通道（`UnlockLDACActivity.java:205-254`）：
 
@@ -59,16 +65,73 @@ FIIL 耳机的 **LDAC 高清解码**需要先在官方 App（FIIL+）里点一�
 
 ---
 
-## 四种方案
+## 五种方案
 
-| # | 方案 | 需要 root | 需要重打包 | 需要 PC | 适用机型 | 工具 |
-|---|---|---|---|---|---|---|
-| 一 | **CC Pro2 隐藏后门（长按）** | 否 | 否 | 否 | 仅 CC Pro2 / F039 | 原版 App |
-| 二 | **PC 串口直接写码** | 否 | 否 | 是 | 全机型 | [`src/fiil_ldac.py`](src/fiil_ldac.py) |
-| 三 | **本地假服务器 + 原版 App** | 视情况 | 否 | 是 | 全机型 | [`src/fake_server.py`](src/fake_server.py) |
-| 四 | **重打包 APK 内嵌激活码** | 否 | 是 | 是 | 全机型 | [`src/patch_apk.py`](src/patch_apk.py) |
+| # | 方案 | 需要 root | 需要重打包 | 需要 PC | 需要配对出 COM 口 | 适用机型 | 工具 |
+|---|---|---|---|---|---|---|---|
+| 一 | **CC Pro2 隐藏后门（长按）** | 否 | 否 | 否 | 否 | 仅 CC Pro2 / F039 | 原版 App |
+| 二 | **PC 串口写码** | 否 | 否 | 是 | **是** | 全机型 | [`src/fiil_ldac.py`](src/fiil_ldac.py) |
+| 三 | **本地假服务器 + 原版 App** | 视情况 | 否 | 是 | 否 | 全机型 | [`src/fake_server.py`](src/fake_server.py) |
+| 四 | **重打包 APK 内嵌激活码** | 否 | 是 | 是 | 否 | 全机型 | [`src/patch_apk.py`](src/patch_apk.py) |
+| 五 | **PC 端纯 BLE 直连（推荐）** | 否 | 否 | 是 | **否** | F046 / F048 等 Mate 族 | [`src/fiil_ble.py`](src/fiil_ble.py) |
 
-按折腾程度从低到高：**一 → 三 → 二 → 四**。
+按折腾程度从低到高：**五 → 一 → 三 → 二 → 四**。
+
+### 方案五：PC 端纯 BLE 直连（1.1.0 新增，真机验证）
+
+前四种方案都卡在同一个前提上：**要用 SPP/RFCOMM 就得在 Windows 里配出串口**，
+而很多机器（尤其是蓝牙 4.2 的老适配器）根本配不出稳定的 COM 口。
+
+方案五绕开 SPP，直接走 **BLE GATT**——同一副耳机在 BLE 侧就有服务：
+
+| 项 | UUID / 值 |
+|---|---|
+| 服务 | `0000fdb3-0000-1000-8000-00805f9b34fb` |
+| 写特征 | `0000ff17-0000-1000-8000-00805f9b34fb` |
+| 通知特征 | `0000ff18-0000-1000-8000-00805f9b34fb` |
+| CCCD | `00002902-0000-1000-8000-00805f9b34fb` |
+
+帧格式与 SPP 侧的 `writeMate` **完全一致**（`com.fengeek.main.i.b.writeMate`），
+所以 BLE 与 SPP 共用同一套字节布局：
+
+```
+[seq][cid][0x01][0x00] + ([(plen+2), cmdId] if cmdId!=0) + [plen] + payload
+```
+
+```bash
+pip install bleak
+
+# 1. 扫描，按 服务UUID + 厂商ID 0x0234 认出 FIIL 设备
+python src/fiil_ble.py scan
+
+# 2. 读全部状态（型号 / 固件 / UUID / 142 / 143 / 144）
+python src/fiil_ble.py status --addr B0:F1:A3:A8:7A:C8
+
+# 3. 备份当前 license
+python src/fiil_ble.py backup --addr B0:F1:A3:A8:7A:C8
+
+# 4. 开 / 关 LDAC（真机验证可用；切 LDAC 会重建 A2DP，断链属预期）
+python src/fiil_ble.py switch --on  --addr B0:F1:A3:A8:7A:C8
+python src/fiil_ble.py switch --off --addr B0:F1:A3:A8:7A:C8
+
+# 5. 写 license（只在你有有效码时用；离线伪造已被证伪）
+python src/fiil_ble.py unlock --from-device-uuid --dry-run    # 先看会发什么，不发送
+python src/fiil_ble.py unlock --code <32位hex> --yes           # 用你自己拿到的有效码
+```
+
+**实测记录**（FIIL Key Max，`B0:F1:A3:A8:7A:C8`，固件 3.0.1.1）：
+
+| 命令 | 结果 |
+|---|---|
+| `scan` | 命中 `rssi=-48 svc=FDB3 mfr=0x0234 ← FIIL` |
+| `status` | `FIIL Key Max` / PID `00 2E 01`（F046）/ 左右 UUID 相同 / 142=01 / 143=01 / 144=02 |
+| `switch --off` | ACK 后重连复核 143=`00` ✓ |
+| `switch --on` | 先 `setLowDelay(0)`，再 `setLdacSwitch(1)` → 断链 → 重连复核 143=`01`、144=`02` ✓ |
+
+**官方开关顺序**（`F046HomeFragment.java:395-405`，程序已按此实现）：
+开 LDAC 前**必须先关低延迟**，否则固件会拒绝——这一步很多第三方实现都漏了。
+
+原始收发帧全部落在 `docs/evidence/ble_*.log`，可逐帧核对。
 
 ### 方案一：CC Pro2 长按后门（30 秒，仅 F039）
 
@@ -165,16 +228,16 @@ cd fiil-ldac-unlock
 pip install -r requirements.txt
 ```
 
-`requirements.txt` 只有一项：`pyserial>=3.5`（仅方案二需要）。
+`requirements.txt` 有两项：`pyserial>=3.5`（方案二）与 `bleak>=0.22`（方案五）。
 方案一、三、四只用 Python 标准库。
 
 ### 平台支持
 
-| 平台 | 方案二（串口） | 方案三（假服务器） | 方案四（重打包） |
-|---|---|---|---|
-| Windows | ✅ 配对后自动生成 COM 口 | ✅ | ✅ |
-| Linux | ⚠️ 需 `rfcomm bind` 或蓝牙 SPP 工具 | ✅ | ✅ |
-| macOS | ⚠️ 需 `socat` 桥接 `/dev/tty.*` | ✅ | ✅ |
+| 平台 | 方案二（串口） | 方案三（假服务器） | 方案四（重打包） | 方案五（BLE） |
+|---|---|---|---|---|
+| Windows | ✅ 配对后自动生成 COM 口 | ✅ | ✅ | ✅ 需 Win10 1809+ |
+| Linux | ⚠️ 需 `rfcomm bind` 或蓝牙 SPP 工具 | ✅ | ✅ | ✅ BlueZ ≥ 5.43 |
+| macOS | ⚠️ 需 `socat` 桥接 `/dev/tty.*` | ✅ | ✅ | ✅ macOS 11+ |
 
 ### 自检
 
@@ -182,8 +245,8 @@ pip install -r requirements.txt
 
 ```bash
 python src/selftest.py
-# 结果：22 通过，0 失败（有反编译产物时）
-# 结果：15 通过，0 失败（无反编译产物时，后 7 项 SKIP）
+# 结果：36 通过，0 失败（有反编译产物时）
+# 结果：29 通过，0 失败（无反编译产物时，后 7 项 SKIP）
 ```
 
 ---
@@ -193,18 +256,21 @@ python src/selftest.py
 ```
 fiil-ldac-unlock/
 ├── src/
+│   ├── fiil_ble.py         # 方案五：PC 端纯 BLE 直连（bleak，无需 COM 口）
 │   ├── fiil_ldac.py        # 方案二：串口直写（F39 / F43 / F048 三套帧）
 │   ├── fake_server.py      # 方案三：本地假服务器
 │   ├── patch_apk.py        # 方案四：APK 重打包注入
 │   └── selftest.py         # 离线自检
 ├── docs/
-│   ├── PROTOCOL.md         # 三套帧格式与四条通道的完整规格
+│   ├── PROTOCOL.md         # 三套帧格式 + BLE 通道的完整规格
 │   ├── ACTIVATION_FLOW.md  # 激活链路逐步拆解（含文件行号）
 │   ├── TROUBLESHOOTING.md  # 常见问题
+│   ├── evidence/           # 真机收发帧日志
 │   └── en/                 # English translation
 ├── examples/
 │   ├── dump_frames.py      # 打印各协议帧，不连接设备
 │   └── probe_headset.py    # 只读探测：读激活状态与 UUID
+├── backup/                 # backup 子命令产出的 license 快照（已 gitignore）
 ├── .github/workflows/ci.yml
 ├── LICENSE                 # GPL-3.0
 ├── NOTICE                  # 商标与归属声明
@@ -224,8 +290,42 @@ fiil-ldac-unlock/
 判断机型走哪套协议；拿不准就先跑 `examples/probe_headset.py` 只读探测。
 
 **Q：写全零 license 会不会把耳机写坏？**
-官方自己的后门就在发全零 license（`CcPro2NewEleFragment.java:642-650`），
-说明固件不校验内容。但**动手前一定先 `backup`**。
+
+会。**这是本项目 1.1.0 修正的最重要一条结论。**
+
+早期版本根据「`CcPro2NewEleFragment` 后门发全零 license」推断「固件不校验内容」，
+这个推断**是错的**，已被真机实测推翻：
+
+| 写入内容 | 耳机 ACK | 读回 142 |
+|---|---|---|
+| `00 ‖ 设备UUID16B` | `00`（成功） | **`00`（解锁状态被清掉）** |
+| `17 字节全零` | `00`（成功） | `00` |
+| 15 种校验和变体 | `00`（成功） | `00` |
+| 43 种 md5/sha1 派生 | `00`（成功） | `00` |
+
+结论有三条：
+
+1. **ACK 只表示「命令被收到」，不表示「license 被接受」**——两者必须分开判断，
+   判断 license 是否被接受的唯一依据是回读 `142`（`getLdacUnlockStatus`）。
+2. 固件**确实校验** license 内容，写错内容会把已有的解锁状态**清掉**，且不会自动恢复。
+3. `activateCode` **不是设备 UUID 的简单派生**，也不是纯校验和，几乎必然含服务器侧私有盐/密钥。
+   在官方服务器下线（`newservice.fiil.com` NXDOMAIN）的今天，**离线伪造 license 已被证伪**。
+
+因此：**动手前一定先 `backup`**，且不要指望「随便造一串码写进去」能解锁。
+
+**Q：那 LDAC 还能打开吗？**
+
+能——但路径和官方 UI 暗示的不一样。
+
+真机实测（FIIL Key Max / F046，固件 3.0.1.1）证明 **`142`（授权）与 `143`（开关）是两条独立路径**：
+
+| 142 授权 | 143 开关 | 144 编解码 | LDAC 实际生效 |
+|---|---|---|---|
+| `00` | `01` | `02` | **是** |
+
+即 **LDAC 开关本身不需要 license**，license 只影响官方 App 的 UI 是否放行那个开关。
+所以本项目现在把「**开/关 LDAC**」作为主功能（真机验证可用），
+把「写 license」保留为「写入你在别处已取得的有效码」的通道（离线伪造已证伪）。
 
 **Q：固件升级后 LDAC 又没了？**
 正常，升级会清掉激活标志。重新跑一次对应方案即可。

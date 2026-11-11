@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 FIIL+ LDAC 激活 —— 方法三：APK 内嵌激活码（重打包）
 ====================================================
@@ -225,7 +224,7 @@ def cmd_inject(args):
 
     print(f"[*] 目标：{target}")
     print(f"[*] 方法：{method_name}{method_sig}   type={type_value}")
-    with open(target, "r", encoding="utf-8") as fh:
+    with open(target, encoding="utf-8") as fh:
         text = fh.read()
 
     if "LDAC-PATCH" in text:

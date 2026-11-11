@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 FIIL+ 假服务器 / 离线激活服务
 =============================
@@ -54,13 +53,10 @@ B) 手机通过 HTTP 代理指向本机（无需 root）
 
 import argparse
 import json
-import os
 import random
-import string
 import sys
-import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import parse_qs, urlparse
 
 # Windows 控制台默认 GBK，中文会乱码，强制 UTF-8 输出
 for _s in (sys.stdout, sys.stderr):
@@ -106,7 +102,7 @@ class Handler(BaseHTTPRequestHandler):
     # 静音默认日志
     def log_message(self, fmt, *args):
         if getattr(self.server, "verbose", False):
-            sys.stderr.write("[%s] %s\n" % (self.address_string(), fmt % args))
+            sys.stderr.write(f"[{self.address_string()}] {fmt % args}\n")
 
     # ---- 通用 -------------------------------------------------------------
     def _send(self, body: bytes, ctype="application/json; charset=utf-8", status=200):
@@ -173,7 +169,8 @@ class Handler(BaseHTTPRequestHandler):
     # ---- POST -------------------------------------------------------------
     def do_POST(self):
         length = int(self.headers.get("Content-Length") or 0)
-        raw = self.rfile.read(length) if length else b""
+        if length:
+            self.rfile.read(length)          # 请求体这里用不上，但要读掉以保持连接同步
         u = urlparse(self.path)
         path = u.path.rstrip("/") or "/"
 
@@ -216,7 +213,7 @@ def main(argv=None):
         print(f"      {d}")
     print()
     print("  方式 A（有 root）：改 /system/etc/hosts")
-    print("  方式 B（无 root）：Wi-Fi → 代理 → 手动 → <本机IP>:%d" % args.port)
+    print(f"  方式 B（无 root）：Wi-Fi → 代理 → 手动 → <本机IP>:{args.port}")
     print()
     print("  Ctrl+C 停止")
     print("=" * 66)

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 FIIL+ LDAC 离线激活 —— PC 直写工具
 ==================================
@@ -469,7 +468,7 @@ def cmd_activate(args):
         resp = collect_responses(t, timeout=2.0)
         if resp:
             print("\n[响应]")
-            for seq, cmd, ctype, total, index, payload in resp:
+            for _seq, cmd, ctype, total, index, payload in resp:
                 print(f"  cmd=0x{cmd:02X} type={ctype} [{index+1}/{total}] {_hex(payload)}")
         else:
             print("\n[!] 没收到响应（耳机可能不回 ACK，也可能是没写进去）")

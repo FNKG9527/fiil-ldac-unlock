@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """离线自检：不需要耳机、不需要串口，验证帧构造是否与逆向结果一致。
 
 跑法：
@@ -6,7 +5,6 @@
 
 全部 PASS 说明 fiil_ldac.py 组出来的字节和 App 发出去的字节一致。
 """
-import io
 import os
 import re
 import sys
@@ -78,15 +76,15 @@ print("=" * 70)
 print(" 3. license 解析")
 print("=" * 70)
 
-l, r = F.build_license_pair("11" * 16 + "," + "22" * 16)
-check("左耳前缀 0x00", l[0], 0x00)
-check("右耳前缀 0x01", r[0], 0x01)
-check("左耳长度 17", len(l), 17)
-check("右耳长度 17", len(r), 17)
+lic_left, lic_right = F.build_license_pair("11" * 16 + "," + "22" * 16)
+check("左耳前缀 0x00", lic_left[0], 0x00)
+check("右耳前缀 0x01", lic_right[0], 0x01)
+check("左耳长度 17", len(lic_left), 17)
+check("右耳长度 17", len(lic_right), 17)
 
-l, r = F.build_zero_pair()
-check("后门：左耳全 0", l, bytes(17))
-check("后门：右耳 01 开头", r, bytes([1]) + bytes(16))
+lic_left, lic_right = F.build_zero_pair()
+check("后门：左耳全 0", lic_left, bytes(17))
+check("后门：右耳 01 开头", lic_right, bytes([1]) + bytes(16))
 
 print()
 print("=" * 70)
@@ -100,7 +98,7 @@ try:
         P.PREDECOMPILED, "smali_classes3", "com", "fengeek", "main",
         "f048", "fragment", "F048HomeFragment.smali")
     if os.path.isfile(smali):
-        text = io.open(smali, encoding="utf-8").read()
+        text = open(smali, encoding="utf-8").read()
         pat = r"\.method[^\n]*\bo\(\)V\n"
         m = re.search(pat, text)
         check("在 F048HomeFragment 找到 o()V", bool(m), True)
@@ -121,6 +119,73 @@ try:
         print("  [SKIP] 没找到反编译目录，跳过（不影响其它检查）")
 except ImportError as e:
     print(f"  [SKIP] {e}")
+
+print()
+print("=" * 70)
+print(" 5. BLE 组帧 / 解帧（对照 FIILPeripheral.java 与实测回包）")
+print("=" * 70)
+
+try:
+    import fiil_ble as B
+
+    # Mate 组帧：与 com/fengeek/main/i/b.java:writeMate 一致
+    check("BLE Mate 握手 setUnlock",
+          B.build_mate_frame(B.CID_QUERY, B.Q_UNLOCK, bytes([0x02, 0x34]), 0),
+          bytes.fromhex("00270100 04ff0202 34".replace(" ", "")))
+    check("BLE Mate 查询帧 getLdacUnlock(142)",
+          B.build_mate_frame(B.CID_QUERY, B.Q_LDAC_UNLOCK, b"", 2),
+          bytes.fromhex("0227010002 8e00".replace(" ", "")))
+    check("BLE Mate 写开关 setLdacSwitch(1)",
+          B.build_mate_frame(B.CID_SET_PARAM, B.SET_LDAC_SWITCH, bytes([1]), 6),
+          bytes.fromhex("06010100 030d0101".replace(" ", "")))
+    check("BLE Mate 写 license 17 字节",
+          B.build_mate_frame(B.CID_SET_PARAM, B.SET_ACTIVATE_LDAC, bytes(17), 0),
+          bytes.fromhex("00010100 130c 11".replace(" ", "")) + bytes(17))
+
+    # SDP 组帧：与 FIILPeripheral.java:483-505 一致
+    check("BLE SDP 组帧（F048 写 license）",
+          B.build_sdp_frame(1, 12, bytes(17)),
+          bytes.fromhex("ff010013023400010c 11".replace(" ", "")) + bytes(17))
+
+    # 解帧：用真机实测回包逐条验证
+    real = bytes.fromhex("07270200038e01 01".replace(" ", ""))
+    frames, rest = B.drain(real)
+    check("解帧：真机 142 回包 → 1 帧", len(frames), 1)
+    check("解帧：cid=39", frames[0].cid, 39)
+    check("解帧：cmd=142", frames[0].cmd, 142)
+    check("解帧：payload=01（已解锁）", frames[0].payload, b"\x01")
+    check("解帧：无残留", rest, b"")
+
+    short = bytes.fromhex("07010200030d0100".replace(" ", ""))
+    frames, _ = B.drain(short)
+    check("解帧：SET ACK 短帧 payload[0]=0 即成功", frames[0].ok, True)
+
+    # 半帧必须保留而不是丢弃（真实缺陷回归测试）
+    half = real[:4]
+    frames, rest = B.drain(half)
+    check("解帧：半帧不丢，原样保留", rest, half)
+
+    # 帧头非法时丢 1 字节重同步
+    frames, rest = B.drain(b"\x00\x00\x00" + real)
+    check("解帧：非法帧头重同步后仍能解出", len(frames), 1)
+
+    # 机型识别：earType 在 buff[1]，不是 buff[0]
+    check("PID 回包 00 2E 01 → earType 索引 1 = 46",
+          bytes.fromhex("002e01")[B.PID_EAR_TYPE_INDEX], 46)
+
+    # license 形态
+    check("BLE license 左耳首字节 0x00", B.build_license(bytes(16), 0x00)[0], 0x00)
+    check("BLE license 右耳首字节 0x01", B.build_license(bytes(16), 0x01)[0], 0x01)
+    check("BLE license 长度 17", len(B.build_license(bytes(16))), 17)
+
+    # 机型能力表
+    check("F046 可写 license", 46 in B.LICENSE_CAPABLE_EAR_TYPES, True)
+    check("F048 可写 license", 48 in B.LICENSE_CAPABLE_EAR_TYPES, True)
+    check("F045 不可写 license", 45 in B.LICENSE_CAPABLE_EAR_TYPES, False)
+    check("F053 不可写 license", 53 in B.LICENSE_CAPABLE_EAR_TYPES, False)
+
+except ImportError as e:
+    print(f"  [SKIP] fiil_ble 导入失败：{e}")
 
 print()
 print("=" * 70)
