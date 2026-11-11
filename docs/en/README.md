@@ -62,7 +62,7 @@ The four channels (`UnlockLDACActivity.java:205-254`):
 |---|---|---|---|
 | `1` | F43 SDP | `com.fengeek.utils.l1.n0.setLDAC()` | F043 |
 | `2` | F39 / Bluetrum | `F39AppSettingRequest.setActivateLdac()` | CC Pro2 / F039 |
-| `3` | F048 SDP | `com.fengeek.main.i.d.e.setActivationLdac()` | F048 |
+| `3` | F048 (Mate frames) | `com.fengeek.main.i.d.e.setActivationLdac()` | F048 |
 | other | legacy Gaia | `FiilManager.setUnlockLDAC()` → cmd 1968 | F039/F040 older firmware |
 
 Full protocol spec: [PROTOCOL.md](../PROTOCOL.md).
@@ -119,7 +119,7 @@ python src/fiil_ldac.py read --port COM5            # verify
 |---|---|---|---|
 | `f39` | CC Pro2 / F039 (Bluetrum fragments) | 5 bytes | this fragment's payload only |
 | `f43` | F043 (SDP) | 8 bytes | `cmdId` too (`+2`) |
-| `f048` | F048 (SDP) | 8 bytes | `cmdId` too (`+2`) |
+| `f048` | F048 (Mate, same frames as F046) | 4–6 bytes | `cmdId` too (`+2`) |
 | `gaia` | F039–F043 legacy (`com.fiil.sdk`) | 8 bytes | **payload only** |
 
 ⚠️ `gaia` is new in 1.4.0 and has only been verified at the frame level (byte-for-byte

@@ -5,6 +5,67 @@
 
 ---
 
+## [1.4.1] - 2026-11-12
+
+**修正版。** 1.4.0 里关于 F048 的两条结论都是错的，这次连帧带文档一起改掉。
+
+### 修正
+
+**F048 走的是 Mate 帧，不是 SDP。**
+
+1.4.0（以及更早的 1.0.0）一直把 F048 归到 SDP 那一套，`sdp_frame(...)` 组
+`FF 01 00 13 02 34 00 01 0C 11 …`。**错的。**
+
+判据链：
+
+1. `com/fengeek/main/i/d/e.java` 的每个方法末尾都是
+   `a.getInstance().addCommand(aVar)`（`a` = `com.fengeek.main.i.d.a`，CommandManager）
+2. CommandManager 的 `sendCommand()`（`com/fengeek/main/i/d/a.java:235-243`）
+   **只有一句发送**：`com.fengeek.main.i.b.getInstance().writeMate(aVar, this.f31875h);`
+3. `writeMate`（`com/fengeek/main/i/b.java:237-262`）生成的是 Mate 帧
+4. 同文件 `:264` 那个 SDP 版 `write(baseCommand, handle)` **全工程无人调用**
+
+所以 F048 的线格式与 F046 **完全一致**：
+
+```
+00 01 01 00 13 0C 11 00 00×16     ← 写左耳 license（24 字节）
+00 01 01 00 03 0D 01 01           ← 开 LDAC（8 字节）
+```
+
+**F048 的 `setLdacSwitch` 一直是存在的。**
+
+`e.java:573-588` 就是完整的实现，cid=1 / cmdId=13 / payload={0,1}，
+与 F046 的 `c.java:371-385` 逐字节相同——**连承载也一样**，两者区别只在型号门控。
+1.4.0 初版写「F048 的开关命令号未在源码中定位」，是只搜了 `c.java` 导致的
+（七个机型族分散在 `b.java`=F045 … `h.java`=F053，方法名同构但不在同一文件）。
+
+### 新增
+
+- `mate_frame(classify_id, command_id, payload, seq)` —— Mate 组帧，与
+  `b.java:237-262` 逐字节对齐；`commandId == 0` 时正确省略 `(len+2, cmdId)` 两字节
+- `f048_switch_frame(on)` —— F048 的 LDAC 开关
+- `switch --proto f048` 现在可用（之前直接报错返回 2）
+
+### 测试
+
+`src/selftest.py` 第 2 节 F048 部分重写，新增 7 项（Mate 帧长度、右耳首字节下标、
+开/关帧、与 F046 逐字节等价、cid/cmdId、`cmdId=0` 省略）→ **93 通过，0 失败**。
+
+### 文档
+
+- `docs/PROTOCOL.md` §5 由「F048 SDP 通道」改为「F048 通道」，5.1 整节重写为
+  「帧格式：**Mate**，不是 SDP」并给出四步判据链；5.4 补「SDP 与 Mate 是两条互不相干的链路」对照
+- `docs/PROTOCOL.md` §13 对照表：F048 从 SDP 列挪到 Mate 列；SDP 列注明承载是
+  `DeviceCommManager.sendRequest`
+- README / en README 的 `--proto` 表、类型表、CHANGELOG 1.4.0 补记、
+  DELIVERY_REPORT、ACTIVATION_FLOW 注释同步修正
+
+> **教训**：`b.java` 同时存在 `writeMate`（活）和 `write(baseCommand)`（死）两个组帧函数，
+> 只看后者会得出完全相反的结论。判断某条命令走哪套帧，要**追到 `sendCommand()` 这一层**，
+> 看它实际调用的是谁，而不是看哪个函数名更像。
+
+---
+
 ## [1.4.0] - 2026-11-12
 
 **Gaia 通道版。** 之前 `--proto` 只有 `f39`/`f43`/`f048` 三套，走 `com.fiil.sdk`
@@ -77,7 +138,7 @@ aVar.setBuffer(new byte[]{ z ? (byte) 1 : (byte) 0 });
 ```
 
 即 **cid=1 / cmdId=13 / payload={0,1}，与 F046 的 `c.java:371-385` 逐字节相同**，
-区别只在承载：F046 走 Mate 组帧，F048 走 SDP。
+而且**连承载也一样**（都是 Mate 帧）——两者的区别只在型号门控。
 
 ```
 FF 01 00 03 02 34 00 01 0D 01 01     ← 开（11 字节）

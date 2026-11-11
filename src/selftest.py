@@ -91,11 +91,20 @@ check(
 )
 check("F43 打开 LDAC", F.f43_switch_frame(True), bytes.fromhex("ff01000302340904040101"))
 
-# F048 开关：e.java:573-588 setLdacSwitch —— cid=1、cmdId=13、payload={0/1}，
-# 与 F046（c.java:371-385）逐字节相同，区别只在承载（F048 走 SDP）
-check("F048 打开 LDAC", F.f048_switch_frame(True), bytes.fromhex("ff01000302340001 0d0101".replace(" ", "")))
-check("F048 关闭 LDAC", F.f048_switch_frame(False), bytes.fromhex("ff01000302340001 0d0100".replace(" ", "")))
-check("F048 开关与 F046 的 cid/cmdId 相同", (F.F048_CLASSIFY_ID, F.F39_SETTING_LDAC), (1, 13))
+# F048 走的是 Mate 组帧（不是 SDP）：F048 通过 RFCOMM UUID d52b47bc-… 连上后
+# 走 CommandManager → d/a.java:243 sendCommand() → writeMate()；
+# b.java:264 那个 SDP 版 write(baseCommand) 在全工程里无人调用（死代码）。
+check(
+    "F048 写 license 是 Mate 帧（24 字节）",
+    F.f048_activate_frames(bytes(17), bytes([1]) + bytes(16))[0],
+    bytes.fromhex("0001010013" + "0c11") + bytes(17),
+)
+check("F048 右耳首字节 0x01", F.f048_activate_frames(bytes(17), bytes([1]) + bytes(16))[1][7], 0x01)
+check("F048 打开 LDAC", F.f048_switch_frame(True), bytes.fromhex("00010100030d0101"))
+check("F048 关闭 LDAC", F.f048_switch_frame(False), bytes.fromhex("00010100030d0100"))
+check("F048 开关与 F046 逐字节相同", F.f048_switch_frame(True), F.mate_frame(1, 13, b"\x01"))
+check("F048 的 setActivationLdac 与 F046 同 cid/cmdId", (F.F048_CLASSIFY_ID, F.F048_CMD_ACTIVATE), (1, 12))
+check("Mate 帧 cmdId=0 时省略两字节", F.mate_frame(36, 0), bytes.fromhex("0024010000"))
 
 # Gaia 组帧：与 com/fiil/sdk/command/FiilCommandUtil.java:517-534 getSendBuffer 一致
 # 8 字节头 SOF|ver|flags|payloadLen|vendHi vendLo|cmdHi cmdLo，payloadLen 只算 payload

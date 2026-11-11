@@ -172,21 +172,43 @@ def f43_switch_frame(on: bool):
     return sdp_frame(F43_CMD_EXECUTE_EXTEND, F43_PROTO_LDAC_SWITCH, bytes([1 if on else 0]))
 
 
+def mate_frame(classify_id: int, command_id: int, payload: bytes = b"", seq: int = 0) -> bytes:
+    """Mate 帧（com/fengeek/main/i/b.java:237-262 writeMate）。
+
+        seq | cid | 01 | 00 | (len(payload)+2) | cmdId | len(payload) | payload
+
+    commandId 为 0 时省略 (len+2, cmdId) 两字节（`if (getCommandId() != 0)`）。
+
+    这是**所有走 CommandManager 的命令**的真实承载：d/a.java:235-243 的
+    `sendCommand()` 无条件下调 `writeMate(aVar, this.f31875h)`，而 b.java:264 那个
+    SDP 版 `write(baseCommand, handle)` 在全工程里**无人调用**（死代码）。
+    """
+    out = bytearray([seq & 0xFF, classify_id & 0xFF, 0x01, 0x00])
+    if command_id != 0:
+        out += bytes([(len(payload) + 2) & 0xFF, command_id & 0xFF])
+    out += bytes([len(payload) & 0xFF]) + payload
+    return bytes(out)
+
+
 def f048_activate_frames(left: bytes, right: bytes):
-    """F048 type=3：classifyId=1, cmdId=12，左右各发一次"""
+    """F048 type=3：classifyId=1, cmdId=12，左右各发一次。
+
+    承载是 **Mate**（F048 通过 RFCOMM UUID d52b47bc-… 连上后走 CommandManager →
+    writeMate），不是 SDP。早期版本按 SDP 组帧是错的，见 CHANGELOG 1.4.1。
+    """
     return [
-        sdp_frame(F048_CLASSIFY_ID, F048_CMD_ACTIVATE, left),
-        sdp_frame(F048_CLASSIFY_ID, F048_CMD_ACTIVATE, right),
+        mate_frame(F048_CLASSIFY_ID, F048_CMD_ACTIVATE, left),
+        mate_frame(F048_CLASSIFY_ID, F048_CMD_ACTIVATE, right),
     ]
 
 
 def f048_switch_frame(on: bool):
     """F048 的 LDAC 开关（e.java:573-588 setLdacSwitch）。
 
-    cid=1、cmdId=13、payload={0/1}——与 F046（c.java:371-385）逐字节相同，
-    区别只在承载：F046 走 Mate 组帧，F048 走 SDP。
+    cid=1、cmdId=13、payload={0/1}——与 F046（c.java:371-385）**完全相同**，
+    连承载也一样（都是 Mate）。两者唯一的区别是型号门控，不是帧。
     """
-    return sdp_frame(F048_CLASSIFY_ID, F39_SETTING_LDAC, bytes([1 if on else 0]))
+    return mate_frame(F048_CLASSIFY_ID, F39_SETTING_LDAC, bytes([1 if on else 0]))
 
 
 def gaia_frame(vendor_id: int, command_id: int, payload: bytes = b"", new_protocol: bool = False) -> bytes:

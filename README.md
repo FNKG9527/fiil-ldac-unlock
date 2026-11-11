@@ -59,7 +59,7 @@ LDAC 开关本身并不需要 license。详见下方 FAQ「那 LDAC 还能打开
 |---|---|---|---|
 | `1` | F43 SDP | `com.fengeek.utils.l1.n0.setLDAC()` | F043 |
 | `2` | F39 / Bluetrum | `F39AppSettingRequest.setActivateLdac()` | CC Pro2 / F039 |
-| `3` | F048 SDP | `com.fengeek.main.i.d.e.setActivationLdac()` | F048 |
+| `3` | F048（Mate 帧） | `com.fengeek.main.i.d.e.setActivationLdac()` | F048 |
 | 其它 | Gaia 老协议 | `FiilManager.setUnlockLDAC()` → 命令 1968 | F039/F040 等老固件 |
 
 协议细节见 [docs/PROTOCOL.md](docs/PROTOCOL.md)。
@@ -210,7 +210,7 @@ python src/fiil_ldac.py read --port COM5
 |---|---|---|---|
 | `f39` | CC Pro2 / F039（Bluetrum 分片） | 5 字节 | 仅本片 payload |
 | `f43` | F043（SDP） | 8 字节 | 含 `cmdId`（`+2`） |
-| `f048` | F048（SDP） | 8 字节 | 含 `cmdId`（`+2`） |
+| `f048` | F048（Mate，与 F046 同帧） | 4–6 字节 | 含 `cmdId`（`+2`） |
 | `gaia` | F039–F043 老机型（`com.fiil.sdk`） | 8 字节 | **仅 payload** |
 
 ⚠️ `gaia` 是 1.4.0 新加的，**只做过组帧层面的验证**（与反编译源码逐字节一致），

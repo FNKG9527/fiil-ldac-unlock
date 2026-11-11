@@ -155,7 +155,7 @@ right[0] = 1;    // 右耳
 switch (type) {
     case 1: /* F43  SDP    */ break;
     case 2: /* F39  Bluetrum*/ break;
-    case 3: /* F048 SDP    */ break;
+    case 3: /* F048 (Mate) */ break;
     default:/* Gaia 1968  */ break;
 }
 ```

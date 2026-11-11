@@ -19,7 +19,7 @@
 - [2. UnlockLDACActivity：四条通道的分派](#2-unlockldacactivity四条通道的分派)
 - [3. F39 / Bluetrum 通道](#3-f39--bluetrum-通道)
 - [4. F43 SDP 通道](#4-f43-sdp-通道)
-- [5. F048 SDP 通道](#5-f048-sdp-通道)
+- [5. F048 通道](#5-f048-通道)
 - [6. Gaia 老协议通道](#6-gaia-老协议通道)
 - [7. license 的构造](#7-license-的构造)
 - [8. 服务器接口](#8-服务器接口)
@@ -258,17 +258,37 @@ public void setLDAC(byte[] left, byte[] right, callback) {
 
 ---
 
-## 5. F048 SDP 通道
+## 5. F048 通道
 
 📖 静态分析 + ✅ 组帧已核对。
 
-### 5.1 帧格式
+### 5.1 帧格式：**Mate**，不是 SDP
 
-与 F43 **同构**（同一个 `FF 01 00 | len | 02 34 | ...` 布局），只是命令号不同。
+> ⚠️ **1.4.1 修正**：本节早期版本说 F048「与 F43 同构、走 SDP」，**这是错的**。
+>
+> 判据链：
+> 1. `com/fengeek/main/i/d/e.java` 的每个方法末尾都是
+>    `a.getInstance().addCommand(aVar)`（`a` = `com.fengeek.main.i.d.a`，CommandManager）
+> 2. CommandManager 的 `sendCommand()`（`com/fengeek/main/i/d/a.java:235-243`）只有一句发送：
+>    `com.fengeek.main.i.b.getInstance().writeMate(aVar, this.f31875h);`
+> 3. `writeMate`（`com/fengeek/main/i/b.java:237-262`）生成的就是 Mate 帧
+> 4. 同文件 `:264` 那个 SDP 版 `write(baseCommand, handle)` **全工程无人调用**（死代码）
+>
+> 所以 F048 的线格式与 F046 **完全一致**，只有连接层不同
+> （F048 用 RFCOMM UUID `d52b47bc-2dea-42c4-b26d-20252fceeeb3`，
+> 见 `F048MainFragment.java:640` / `:728`；F046 用标准 SPP `00001101-…`）。
 
-### 5.2 命令
+Mate 帧布局（`b.java:237-262`）：
 
-📖 `com/fengeek/main/i/d/e.java:442`
+```
+seq | cid | 01 | 00 | (len(payload)+2) | cmdId | len(payload) | payload
+```
+
+`commandId == 0` 时省略 `(len+2, cmdId)` 两字节。
+
+### 5.2 写 license
+
+📖 `com/fengeek/main/i/d/e.java:442-457`
 
 ```java
 public void setActivationLdac(byte[] licenseBuff, infoListener) {
@@ -292,11 +312,11 @@ public void setActivationLdac(byte[] licenseBuff, infoListener) {
 | `cmdId` | `12` (`0x0C`) |
 | buffer | 17 字节 license |
 
-**实例**
+**实例（Mate 帧，24 字节）**
 
 ```
-FF 01 00 13 02 34 00 01 0C 11 00 00×16     ← 左耳（27 字节）
-FF 01 00 13 02 34 00 01 0C 11 01 00×15     ← 右耳
+00 01 01 00 13 0C 11 00 00×16     ← 左耳
+00 01 01 00 13 0C 11 01 00×15     ← 右耳
 ```
 
 ### 5.3 LDAC 开关
@@ -317,11 +337,11 @@ public void setLdacSwitch(boolean z, com.fengeek.main.i.d.i.b bVar) {
 ```
 
 → **cid=1 / cmdId=13 / payload={0,1}，与 F046 的 `c.java:371-385` 逐字节相同**，
-区别只在承载：F046 走 Mate 组帧，F048 走 SDP。
+连承载也一样（都是 Mate）。两者的区别只在**型号门控**，不在帧。
 
 ```
-FF 01 00 03 02 34 00 01 0D 01 01     ← 开（11 字节）
-FF 01 00 03 02 34 00 01 0D 01 00     ← 关
+00 01 01 00 03 0D 01 01     ← 开（8 字节）
+00 01 01 00 03 0D 01 00     ← 关
 ```
 
 > ⚠️ 早期版本曾误判「F048 的源码里没有 setLdacSwitch」，是因为只搜了 `c.java`（F046 类）。
@@ -332,7 +352,18 @@ FF 01 00 03 02 34 00 01 0D 01 00     ← 关
 
 📖 `com/fengeek/main/i/b.java` 是 `BluetoothStream`：
 `connectStream(handler, socket, earType)` 启动读线程（`:216-222`），
-`write(byte[])` 直接写 socket（`:228-235`），`writeMate(...)` 是另一套无 `FF` 头的格式（`:237-262`）。
+`write(byte[])` 直接写 socket（`:228-235`），`writeMate(...)` 是 Mate 组帧（`:237-262`）。
+
+> 📌 注意区分两条互不相干的链路：
+>
+> - **SDP 帧**（`FF 01 00 | len+2 | 02 34 | …`）由 `com/fengeek/utils/l1/v0/a.getPayload()`
+>   构造，经 `DeviceCommManager.sendRequest(request)` 下发（F43 / CC Pro2 那套私有 SDK）。
+> - **Mate 帧**（`seq | cid | 01 | 00 | …`）由 `com/fengeek/main/i/b.java:237` 的
+>   `writeMate()` 构造，经 `CommandManager.sendCommand()`（`d/a.java:243`）下发
+>   （F045–F053 七个机型族）。
+>
+> `b.java:264` 里那个 SDP 版 `write(baseCommand, handle)` 生成格式对，但**全工程无人调用**——
+> 属于遗留死代码，不要被它误导。
 
 ---
 
@@ -558,7 +589,7 @@ UUID：来自耳机本身，通过 FiilManager.getUUID() 或 F39 的 LDAC_UUID �
 | F039 / CC Pro2 | `CcPro2NewEleFragment` | `2` | F39 Bluetrum |
 | F039 / CC Pro2（长按后门） | `CcPro2NewEleFragment.g0()` | — | F39 Bluetrum，不联网 |
 | F043 | `F046HomeFragment` | `1` | F43 SDP |
-| F048 | `F048HomeFragment` | `3` | F048 SDP |
+| F048 | `F048HomeFragment` | `3` | F048（Mate 帧） |
 | F040 等老固件 | — | `0` | Gaia 1968 |
 
 `FiilCommandUtil` 体系里还有 `FiilCommandF039`（Gaia 1968），说明 F039 存在新旧两套固件，
@@ -759,8 +790,8 @@ FIIL+ 里同时存在四套私有帧。它们的**长度字段含义各不相同
 
 | | **Mate** | **SDP** | **F39 / Bluetrum** | **Gaia** |
 |---|---|---|---|---|
-| 典型机型 | F045–F053 | F043 / F048 | F039 / CC Pro2 | F039–F043（`com.fiil.sdk`） |
-| 承载 | SPP `writeMate` / BLE `0xff17` | SPP `write` / BLE `0xff17` | SPP | SPP |
+| 典型机型 | F045–F053（**含 F048**） | F043 / CC Pro2 | F039 / CC Pro2（Bluetrum） | F039–F043（`com.fiil.sdk`） |
+| 承载 | SPP `writeMate` / BLE `0xff17` | SPP `sendRequest`（`DeviceCommManager`） | SPP | SPP |
 | 帧头长度 | 4–6 字节 | 8 字节 | 5 字节 | 8 字节 |
 | 长度字段**包含** | `cmdId`（`+2`） | `cmdId`（`+2`） | 仅本片 payload | **仅 payload** |
 | 命令定位 | `cid` + `cmdId` | `commandId` + `subId` | `command` + 分片序号 | `vendorId` + `commandId` |
