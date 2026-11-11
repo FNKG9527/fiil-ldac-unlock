@@ -218,8 +218,8 @@ No earbuds, no serial port required — verifies the frame bytes against the rev
 
 ```bash
 python src/selftest.py
-# 59 passed, 0 failed  (with decompiled artifacts present)
-# 38 passed, 0 failed  (without; last 21 are skipped)
+# 93 passed, 0 failed  (with decompiled artifacts present)
+# 72 passed, 0 failed  (without; last 21 are skipped)
 ```
 
 ---

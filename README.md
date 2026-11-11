@@ -291,8 +291,8 @@ pip install -r requirements.txt
 
 ```bash
 python src/selftest.py
-# 结果：73 通过，0 失败（有反编译产物时）
-# 结果：52 通过，0 失败（无反编译产物时，后 21 项 SKIP）
+# 结果：93 通过，0 失败（有反编译产物时）
+# 结果：72 通过，0 失败（无反编译产物时，后 21 项 SKIP）
 ```
 
 ---
