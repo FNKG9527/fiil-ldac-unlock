@@ -293,6 +293,33 @@ def build_license(code: bytes, ear_byte: int = 0x00) -> bytes:
     return bytes([ear_byte & 0xFF]) + code
 
 
+def parse_activate_codes(text: str) -> list[bytes]:
+    """把用户输入的激活码文本拆成 16 字节块。
+
+    支持两种写法（与官方 ``UnlockLDACActivity.java:207`` 的 ``split(",")`` 一致）::
+
+        "0123456789abcdef0123456789abcdef"                    → [16 字节]
+        "0123..., fedcba..."                                  → [16 字节, 16 字节]
+
+    返回的每一块都是 16 字节**不含耳别前缀**的内容；加前缀交给 ``build_license``。
+    """
+    parts = [p for p in text.replace(" ", "").replace("\t", "").split(",") if p]
+    if not parts:
+        raise ValueError("没有解析到任何激活码")
+    if len(parts) > 2:
+        raise ValueError(f"最多两段（左/右各一段），收到 {len(parts)} 段")
+    out: list[bytes] = []
+    for i, p in enumerate(parts, 1):
+        if len(p) != 32:
+            raise ValueError(
+                f"第 {i} 段是 {len(p)} 个字符，必须恰好 32 个十六进制字符（16 字节）")
+        try:
+            out.append(bytes.fromhex(p))
+        except ValueError:
+            raise ValueError(f"第 {i} 段含非十六进制字符") from None
+    return out
+
+
 def describe_codec(v: bytes) -> str:
     if not v:
         return "<空>"
@@ -673,7 +700,43 @@ async def cmd_switch(args) -> int:
     return 1
 
 
+def _unlock_offline(args) -> int:
+    """``unlock --code <激活码> --dry-run`` 的离线路径：只组装帧并打印，不连耳机。
+
+    用来在耳机不在身边时核对 license 形态、或者给文档写示例。
+    """
+    try:
+        blocks = parse_activate_codes(args.code)
+    except ValueError as exc:
+        print(f"[!] --code 不合法：{exc}")
+        return 2
+    code = blocks[0]
+    code_right = blocks[1] if len(blocks) > 1 else blocks[0]
+
+    lic_left = build_license(code, 0x00)
+    lic_right = build_license(code_right, 0x01)
+
+    print("[=] 离线模式（--dry-run），不连接耳机。")
+    print(f"[*] 来源      : 自定义 activateCode"
+          f"{'（左右各一段）' if len(blocks) > 1 else '（单段，左右同码）'}")
+    print(f"[*] license 左: {_hex(lic_left)}")
+    print(f"[*] license 右: {_hex(lic_right)}")
+    print()
+    print("[*] F046 只会写左耳一次（首字节 0x00），实际发送帧：")
+    print(f"    {_hex(build_mate_frame(CID_SET_PARAM, SET_ACTIVATE_LDAC, lic_left, 0))}")
+    print("[*] F048 左右各写一次，第二帧为：")
+    print(f"    {_hex(build_mate_frame(CID_SET_PARAM, SET_ACTIVATE_LDAC, lic_right, 1))}")
+    print()
+    print("[!] 提醒：ACK 00 只代表「长度 17 + 首字节 0/1」格式合法，")
+    print("    不代表激活码被接受。真正判据是回读 142（--from-device-uuid --yes 会做）。")
+    return 0
+
+
 async def cmd_unlock(args) -> int:
+    # --code + --dry-run：纯离线组帧，不需要耳机在旁边（便于核对 / 离线测）
+    if args.code and args.dry_run:
+        return _unlock_offline(args)
+
     target = await resolve_target(args)
 
     # --- 第 1 步：读机型 + UUID ---
@@ -704,30 +767,31 @@ async def cmd_unlock(args) -> int:
     # --- 第 2 步：构造 license ---
     if args.zeros:
         code = bytes(16)
+        code_right = bytes(16)
         source = "全零（官方「取消激活」原语）"
     elif args.code:
-        raw = args.code.replace(" ", "").replace(",", "")
         try:
-            code = bytes.fromhex(raw)
+            blocks = parse_activate_codes(args.code)
         except ValueError as exc:
-            print(f"[!] --code 不是合法 hex：{exc}")
+            print(f"[!] --code 不合法：{exc}")
             return 2
-        if len(code) != 16:
-            print(f"[!] --code 必须是 32 个 hex 字符（16 字节），收到 {len(code)} 字节")
-            return 2
-        source = "自定义 activateCode"
+        code = blocks[0]
+        # F048 需要左右各一份；只给一段时左右用同一段（与官方「两段相同」的常见情形一致）
+        code_right = blocks[1] if len(blocks) > 1 else blocks[0]
+        source = "自定义 activateCode" + ("（左右各一段）" if len(blocks) > 1 else "")
     elif args.from_device_uuid:
         if len(lu) != 16:
             print(f"[!] 左耳 UUID 只有 {len(lu)} 字节，无法派生 license")
             return 2
         code = lu
+        code_right = ru if len(ru) == 16 else lu
         source = "本机 UUID 自派生（离线推导：服务端 activateCode 即 deviceCode）"
     else:
         print("必须给 --code / --zeros / --from-device-uuid 之一")
         return 2
 
     lic_left = build_license(code, 0x00)
-    lic_right = build_license(code, 0x01)
+    lic_right = build_license(code_right, 0x01)
     print(f"\n[*] 来源      : {source}")
     print(f"[*] license 左: {_hex(lic_left)}")
     print(f"[*] license 右: {_hex(lic_right)}")

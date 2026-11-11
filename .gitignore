@@ -25,6 +25,11 @@ apktool_out/
 docs/evidence/*
 !docs/evidence/README.md
 !docs/evidence/*.example
+# 界面截图是文档的一部分，要提交
+!docs/evidence/*.png
+
+# PyInstaller 生成的 spec（由 tools/build_exe.py 每次重建）
+*.spec
 
 # 备份的 license 可能含设备唯一标识
 backup/

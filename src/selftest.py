@@ -235,6 +235,47 @@ except ImportError as e:
 
 print()
 print("=" * 70)
+print(" 7. 激活码解析 / GUI 复用（对照 UnlockLDACActivity.java:207 split）")
+print("=" * 70)
+
+try:
+    import fiil_ble as B
+
+    _one = "0123456789abcdef0123456789abcdef"
+    check("解析：单段 32 hex", len(B.parse_activate_codes(_one)), 1)
+    check("解析：单段内容正确", B.parse_activate_codes(_one)[0],
+          bytes.fromhex(_one))
+    check("解析：两段逗号分隔", len(B.parse_activate_codes(f"{_one},{_one}")), 2)
+    check("解析：大写也认", B.parse_activate_codes(_one.upper())[0],
+          bytes.fromhex(_one))
+    check("解析：允许前后空白", len(B.parse_activate_codes(f"  {_one}  ")), 1)
+
+    for _bad, _why in (
+        ("", "空串"),
+        ("  ", "全空白"),
+        (_one[:-2], "31 字符"),
+        (_one + "00", "34 字符"),
+        (f"{_one},{_one},{_one}", "三段"),
+        ("z" * 32, "非 hex"),
+    ):
+        try:
+            B.parse_activate_codes(_bad)
+            _got = "没抛错"
+        except ValueError:
+            _got = "抛 ValueError"
+        check(f"解析：{_why} 被拒", _got, "抛 ValueError")
+
+    # 解析 → build_license 的端到端拼装
+    _lic = B.build_license(B.parse_activate_codes(_one)[0], 0x01)
+    check("解析→license：长度 17", len(_lic), 17)
+    check("解析→license：首字节耳别 0x01", _lic[0], 0x01)
+    check("解析→license：后 16 字节等于激活码", _lic[1:], bytes.fromhex(_one))
+
+except ImportError as e:
+    print(f"  [SKIP] fiil_ble 导入失败：{e}")
+
+print()
+print("=" * 70)
 print(f" 结果：{OK} 通过，{FAIL} 失败")
 print("=" * 70)
 sys.exit(1 if FAIL else 0)

@@ -5,6 +5,51 @@
 
 ---
 
+## [1.3.0] - 2026-11-12
+
+**图形界面版。** 之前交付的都是命令行，这次补上真正的「程序」：一个能双击打开的
+Windows 桌面界面，把「扫描 → 读状态 → 开 LDAC」变成点按钮。
+
+### 新增
+
+**程序**
+
+- `src/fiil_gui.py` — **图形界面（tkinter，零额外依赖）**
+  - 设备区：扫描 / 读状态 / 备份 UUID 三个按钮 + 扫描结果下拉列表
+  - 状态区：设备名、固件、机型、电量、`142`（已解锁）、`143`（开关）、`144`（编解码）
+  - 操作区：开 LDAC / 关 LDAC / 写后重连复核 / 写入授权码 / 取消激活
+  - 收发日志框逐行显示每一帧 TX/RX，同时照常写入 `docs/evidence/`
+  - BLE 全部跑在后台线程的独立 asyncio 循环里，界面不阻塞
+  - 破坏性操作（写授权码、取消激活）先弹确认框，文案写明「写错会清掉解锁且无法恢复」
+  - 运行：`python src/fiil_gui.py`
+- `tools/build_exe.py` — 打包脚本，默认 `--onedir`
+  - 产物 `dist/FiilLdacUnlock/FiilLdacUnlock.exe`（2.8 MB，加 `_internal/` 共 29.4 MB）
+  - ⚠️ **单文件模式（`--onefile`）在受限令牌 / 沙箱环境里会失败**：
+    bootloader 解包到 `%TEMP%\_MEIxxxxx` 时报 `Could not create temporary directory!`
+    然后直接退出。同一份代码用 `--onedir` 不需要解包，可正常启动。
+    所以默认 one-dir；`--onefile` 保留给普通环境。
+
+**工具**
+
+- `src/fiil_ble.py` 新增 `parse_activate_codes(text)`：把 `"<32hex>"` 或
+  `"<32hex>,<32hex>"` 拆成 1~2 个 16 字节块（与 `UnlockLDACActivity.java:207`
+  的 `split(",")` 对齐）。黑/大写/空白都接受，长度不对或非 hex 抛 `ValueError`。
+  GUI 与 CLI 共用这一份实现。
+- `src/fiil_ble.py` 的 `unlock --code ... --dry-run` **改为完全离线**：
+  不连耳机，直接打印左右 license 与 F046/F048 实际会发出的帧。耳机不在身边也能核对。
+
+### 修正
+
+- `fiil_ble.py unlock --code` 之前只认单段激活码，**F048 的右耳 license 会复用左耳的内容**。
+  现在支持两段（`--code "左,右"`），并把 `code_right` 显式传下去。
+
+### 测试
+
+- `src/selftest.py` 新增第 7 节「激活码解析 / GUI 复用」14 项。
+- 自检总数：**73 通过，0 失败**（1.2.0 是 59）。
+
+---
+
 ## [1.2.0] - 2026-11-12
 
 **盲扫版。** 把协议的命令空间整个扫了一遍，挖出 6 条未公开查询命令 + 1 个未使用的命令类别，

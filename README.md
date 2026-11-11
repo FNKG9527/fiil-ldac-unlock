@@ -135,6 +135,35 @@ python src/fiil_ble.py unlock --code <32位hex> --yes           # 用你自己�
 
 原始收发帧全部落在 `docs/evidence/ble_*.log`，可逐帧核对。
 
+#### 图形界面（1.3.0 新增）
+
+不想敲命令的话，同一套功能有桌面界面：
+
+```bash
+python src/fiil_gui.py
+```
+
+界面分三块——设备（扫描 / 读状态 / 备份 UUID）、状态（型号 / 固件 / 电量 /
+`142` / `143` / `144`）、操作（开 LDAC / 关 LDAC / 写授权码 / 取消激活），
+下面的日志框逐行显示每一帧 TX/RX，同时照常写 `docs/evidence/`。
+写授权码和取消激活都会先弹确认框。
+
+也可以打包成 exe：
+
+```bash
+python tools/build_exe.py           # 默认 --onedir，推荐
+# 产物：dist/FiilLdacUnlock/FiilLdacUnlock.exe
+```
+
+> ⚠️ **别用 `--onefile`**。单文件模式启动时要把自己解包到 `%TEMP%\_MEIxxxxx`，
+> 在受限令牌 / 沙箱环境里会报 `Could not create temporary directory!` 然后退出
+> （本项目实测踩到过）。`--onedir` 不需要解包，可正常启动，代价是
+> `_internal/` 目录必须和 exe 放在一起。
+
+界面在 980×720 下的实际显示：
+
+![FIIL LDAC 解锁器界面](docs/evidence/gui_screenshot.png)
+
 ### 方案一：CC Pro2 长按后门（30 秒，仅 F039）
 
 App 里留了一个**连服务器都不问**的调试后门（`CcPro2NewEleFragment.java:609-650`）：
@@ -238,11 +267,11 @@ pip install -r requirements.txt
 
 ### 平台支持
 
-| 平台 | 方案二（串口） | 方案三（假服务器） | 方案四（重打包） | 方案五（BLE） |
-|---|---|---|---|---|
-| Windows | ✅ 配对后自动生成 COM 口 | ✅ | ✅ | ✅ 需 Win10 1809+ |
-| Linux | ⚠️ 需 `rfcomm bind` 或蓝牙 SPP 工具 | ✅ | ✅ | ✅ BlueZ ≥ 5.43 |
-| macOS | ⚠️ 需 `socat` 桥接 `/dev/tty.*` | ✅ | ✅ | ✅ macOS 11+ |
+| 平台 | 方案二（串口） | 方案三（假服务器） | 方案四（重打包） | 方案五（BLE） | 图形界面 |
+|---|---|---|---|---|---|
+| Windows | ✅ 配对后自动生成 COM 口 | ✅ | ✅ | ✅ 需 Win10 1809+ | ✅ |
+| Linux | ⚠️ 需 `rfcomm bind` 或蓝牙 SPP 工具 | ✅ | ✅ | ✅ BlueZ ≥ 5.43 | ✅ 需 `python3-tk` |
+| macOS | ⚠️ 需 `socat` 桥接 `/dev/tty.*` | ✅ | ✅ | ✅ macOS 11+ | ✅ |
 
 ### 自检
 
@@ -250,8 +279,8 @@ pip install -r requirements.txt
 
 ```bash
 python src/selftest.py
-# 结果：59 通过，0 失败（有反编译产物时）
-# 结果：38 通过，0 失败（无反编译产物时，后 21 项 SKIP）
+# 结果：73 通过，0 失败（有反编译产物时）
+# 结果：52 通过，0 失败（无反编译产物时，后 21 项 SKIP）
 ```
 
 ---
@@ -261,12 +290,15 @@ python src/selftest.py
 ```
 fiil-ldac-unlock/
 ├── src/
+│   ├── fiil_gui.py         # 图形界面（tkinter）：扫描 / 读状态 / 开 LDAC / 写授权码
 │   ├── fiil_ble.py         # 方案五：PC 端纯 BLE 直连（bleak，无需 COM 口）
 │   ├── fiil_ldac.py        # 方案二：串口直写（F39 / F43 / F048 三套帧）
 │   ├── fake_server.py      # 方案三：本地假服务器
 │   ├── patch_apk.py        # 方案四：APK 重打包注入
 │   ├── probe_guard.py      # 盲扫护栏：拦住 cid=36 恢复出厂等危险命令
 │   └── selftest.py         # 离线自检
+├── tools/
+│   └── build_exe.py        # 把 GUI 打包成 Windows exe（默认 --onedir）
 ├── docs/
 │   ├── PROTOCOL.md         # 三套帧格式 + BLE 通道的完整规格
 │   ├── ACTIVATION_FLOW.md  # 激活链路逐步拆解（含文件行号）
