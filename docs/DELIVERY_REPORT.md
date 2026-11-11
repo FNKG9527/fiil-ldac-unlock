@@ -97,6 +97,14 @@ cid=35 → 固件已实现的第 5 个命令族，App 零调用
 
 1. **测试机 Key Max 的 `142` 现在是 `0`**。这是本轮实测写坏的，且**无法恢复**
    （备份里的 `00‖uuid` 形态正是被固件拒绝的那个）。`143=1`、`144=02` 仍正常，LDAC 仍可用。
+
+   > 原始状态有第三方证据可查：从手机 `/sdcard/Android/data/com.fengeek.f002/files/logan_v1/`
+   > 解出的 2026-10-24 21:54:14 官方 App 日志里有三行——
+   > `BluetoothStream : write: 00 27 01 00 02 8e 00` →
+   > `read: 06 27 02 00 03 8e 01 01， 耳机型号=46` →
+   > `F046HomeFragment : onRead: 获取ldac解锁状态: 01`。
+   > 即**破坏性实验之前这台耳机确实是已授权（`142=01`）状态**。
+   > 解密脚本与明文见 `fiil-ldac-unlock` 之外的 `D:\DeepSeek\_tools\decrypt_logan.py` 与 `D:\DeepSeek\_adb_pull\logan1.plain.txt`。
 2. **LSPosed hook 无法在本机验证**。手机没 root（`su` 不存在、`/data/adb` 权限拒绝），
    模块的 hook 行为只能靠代码审查 + 194 条单测保证。
 3. **`cid=35` 语义未展开**。风险高于收益，没继续扫。
