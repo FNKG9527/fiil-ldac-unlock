@@ -566,8 +566,10 @@ def print_status(state: dict) -> int:
     print(f"  LDAC 开关  : {describe_bool(state.get('LDAC开关', b''))}")
     print(f"  当前编解码 : {describe_codec(state.get('当前编解码', b''))}")
     print("-" * 60)
-    print("  提示：142（已解锁）只决定 FIIL+ App UI 是否放行开关，")
-    print("        与 143/144 是两条独立路径 —— 142=00 时 LDAC 仍可正常开启。")
+    print("  提示：142（授权）与 143（开关）不是同一条路径，但 142=00 时")
+    print("        耳机不会向手机宣告 LDAC 能力，A2DP 只能协商出 AAC/SBC。")
+    print("        判断 LDAC 是否真的在用，请以手机侧 A2DP 协商结果为准，")
+    print("        不要只看本程序读到的 144。")
     print("=" * 60)
     return 0
 

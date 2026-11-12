@@ -4,6 +4,10 @@
 target-version = "py38"
 line-length = 110
 
+# research/ 是研究现场存档：探针脚本为一次性用途、保留原始写法，
+# 不按正式代码标准 lint（这也是它们能作为证据保留的前提）。
+extend-exclude = ["research/probes", "research/logs", "backup", "build", "dist"]
+
 [lint]
 select = [
     "E",    # pycodestyle errors
@@ -24,6 +28,8 @@ ignore = [
 [lint.per-file-ignores]
 "src/selftest.py" = ["B011"]        # assert False 在测试里是正常的
 "examples/*" = ["E402"]             # sys.path 调整后再 import
+"research/probes/*" = ["E402", "B007", "F841"]  # 一次性探针，保留原始形态
+"research/*.py" = ["E402"]
 
 [format]
 quote-style = "double"

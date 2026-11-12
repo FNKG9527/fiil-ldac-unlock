@@ -1,0 +1,27 @@
+==============================================================================
+# FIIL BLE 会话  tag=probe_8c_license  addr=B0:F1:A3:A8:7A:C8  2026-11-12T18:16:13
+==============================================================================
+[+] 已连接 B0:F1:A3:A8:7A:C8  mtu=512
+[+] 已订阅通知 0000ff18-0000-1000-8000-00805f9b34fb
+[TX] setUnlock(握手)              00 27 01 00 04 FF 02 02 34
+     [RX] 00 27 02 00 03 FF 01 FF                      RESP cid=39 cmd=255 len=1  payload=FF
+[TX] 读 0x8A                     01 27 01 00 02 8A 00
+     [RX] 01 27 02 00 12 8A 10 AA BB CC DD EE FF 00 11 22 33 44 55 66 77 88 RESP cid=39 cmd=138 len=16  payload=AA BB CC DD EE FF 00 11 22 33 44 55 66 77 88
+[TX] 读 0x8C                     02 27 01 00 02 8C 00
+     [RX] 02 27 02 00 12 8C 10 AA BB CC DD EE FF 00 11 22 33 44 55 66 77 99 RESP cid=39 cmd=140 len=16  payload=AA BB CC DD EE FF 00 11 22 33 44 55 66 77 99
+[TX] 读 0x8D                     03 27 01 00 02 8D 00
+     [RX] 03 27 02 00 12 8D 10 AA BB CC DD EE FF 00 11 22 33 44 55 66 77 99 RESP cid=39 cmd=141 len=16  payload=AA BB CC DD EE FF 00 11 22 33 44 55 66 77 99
+[TX] 读 142                      04 27 01 00 02 8E 00
+     [RX] 04 27 02 00 03 8E 01 00                      RESP cid=39 cmd=142 len=1  payload=00
+[TX] 写 0x00 + 0x8C内容            05 01 01 00 13 0C 11 00 AA BB CC DD EE FF 00 11 22 33 44 55 66 77 99
+     [RX] 05 01 02 00 03 0C 01 00                      RESP cid=1 cmd=12 len=1  payload=00
+[TX] 读 142                      06 27 01 00 02 8E 00
+     [RX] 06 27 02 00 03 8E 01 00                      RESP cid=39 cmd=142 len=1  payload=00
+[TX] 写 0x01 + 0x8C内容            07 01 01 00 13 0C 11 01 AA BB CC DD EE FF 00 11 22 33 44 55 66 77 99
+     [RX] 07 01 02 00 03 0C 01 00                      RESP cid=1 cmd=12 len=1  payload=00
+[TX] 读 142                      08 27 01 00 02 8E 00
+     [RX] 08 27 02 00 03 8E 01 00                      RESP cid=39 cmd=142 len=1  payload=00
+[TX] 写 0x8C内容 + 0x00 尾          09 01 01 00 13 0C 11 AA BB CC DD EE FF 00 11 22 33 44 55 66 77 99 00
+     [RX] 09 01 02 00 03 0C 01 01                      RESP cid=1 cmd=12 len=1  payload=01
+[TX] 读 142                      0A 27 01 00 02 8E 00
+     [RX] 0A 27 02 00 03 8E 01 00                      RESP cid=39 cmd=142 len=1  payload=00

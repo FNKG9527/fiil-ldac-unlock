@@ -7,19 +7,19 @@
 
 ## 一句话结论
 
-**能解锁，而且已经在真机上跑通了** —— 但"解锁"这个词在这副耳机上被厂商拆分成了两件事：
+**部分能，但"解锁"这件事整体没有成功** —— 而且这项研究付出了具体代价。先把结论摆在最前面：
 
-| 你要的效果 | 能不能做到 | 怎么做到 | 验证状态 |
+| 你要的效果 | 能不能做到 | 说明 | 验证状态 |
 |---|---|---|---|
-| 耳机真的用 LDAC 传音频 | ✅ 能 | `python src/fiil_ble.py switch --on` | **真机验证通过**（143=1, 144=02） |
-| 让 FIIL+ App 里的开关不再是灰的（`142=1`） | ❌ 不能离线做到 | 需要厂商服务器签发的 `activateCode` | 已被证伪：62 个候选全灭 |
+| 让 FIIL+ App 里的开关不再是灰的（`142=1`） | ❌ 不能离线做到 | 需要厂商服务器签发的 `activateCode`；服务器已 NXDOMAIN | 已被证伪：66 个候选全灭 |
+| 耳机真的用 LDAC 传音频 | ❌ 未授权状态下不能 | `142=00` 时耳机不向手机宣告 LDAC 能力，只能协商 AAC | 手机侧 `dumpsys bluetooth_manager` 实测 |
 
-而**第二件事并不影响第一件事**。这是本项目这一轮最重要的发现，也是用户真正想要的东西：
+**代价说明**：本研究在一台**原本已由官方激活、`142=01` 的 FIIL Key Max** 上做写入实验，
+在 2026-11-11 22:59:50 写入了一份固件不认可的 license，导致该耳机
+**`142` 从 `01` 变为 `00`，至今无法恢复**。耳机硬件本身完好（能连、能听、开关能读写），
+代价是 **LDAC 从「已解锁」状态变成了「未解锁」状态**。
 
-```
-142 = 0（未授权）  →  LDAC 开关照样能开，LDAC 照样在跑
-142 只决定 FIIL+ App 那个 UI 让不让你点开关
-```
+这一结果同时推翻了一条长期存在的错误结论（详见下节）。
 
 ---
 
@@ -144,7 +144,7 @@ cid=35 → 固件已实现的第 5 个命令族，App 零调用
    > `read: 06 27 02 00 03 8e 01 01， 耳机型号=46` →
    > `F046HomeFragment : onRead: 获取ldac解锁状态: 01`。
    > 即**破坏性实验之前这台耳机确实是已授权（`142=01`）状态**。
-   > 解密脚本与明文见 `fiil-ldac-unlock` 之外的 `D:\DeepSeek\_tools\decrypt_logan.py` 与 `D:\DeepSeek\_adb_pull\logan1.plain.txt`。
+   > 解密脚本与明文见 `fiil-ldac-unlock` 之外的 `<TOOLS>\decrypt_logan.py` 与 `<WORK>\_adb_pull\logan1.plain.txt`。
 2. **LSPosed hook 无法在本机验证**。手机没 root（`su` 不存在、`/data/adb` 权限拒绝），
    模块的 hook 行为只能靠代码审查 + 194 条单测保证。
 3. **`cid=35` 语义未展开**。风险高于收益，没继续扫。
@@ -204,7 +204,7 @@ python examples/dump_frames.py --proto all
 - 协议完整规格：`docs/PROTOCOL.md`（含第 11 章 BLE 通道、第 12 章未公开命令、第 13 章四套帧对照）
 - 激活链路逐行拆解：`docs/ACTIVATION_FLOW.md`
 - 版本变更记录：`CHANGELOG.md`
-- 模块侧：`D:\DeepSeek\fiil_mod\CHANGELOG.md`（v3.4.3 条目）
+- 模块侧：`<WORK>\fiil_mod\CHANGELOG.md`（v3.4.3 条目）
 
 ---
 

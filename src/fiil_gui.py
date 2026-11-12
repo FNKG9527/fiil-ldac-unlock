@@ -15,15 +15,16 @@ FIIL LDAC 解锁器 —— 图形界面版
 --------
 * BLE 全部跑在后台线程里的独立 asyncio 事件循环，界面线程永不阻塞。
 * 破坏性操作（写授权码、取消激活）一律先弹确认框，并说明后果。
-* 「已解锁(142)」和「LDAC 开关(143)」分开显示 —— 实测这两条是独立路径
-  （见 docs/DELIVERY_REPORT.md），混在一起会误导用户。
+* 「已解锁(142)」和「LDAC 开关(143)」分开显示：两者不是同一条路径，
+  且 142=00 时耳机通常不向手机宣告 LDAC 能力（见 docs/DELIVERY_REPORT.md）。
 
 真机验证（FIIL Key Max / F046 / 固件 3.0.1.1）::
 
     扫描     → B0:F1:A3:A8:7A:C8  svc=FDB3,mfr=0x0234
-    读状态   → 142=00 143=01 144=02(LDAC)
+    读状态   → 142=00 143=01 144=01(非 LDAC)
     关 LDAC  → 143=00 复核通过
-    开 LDAC  → setLowDelay(0) → setLdacSwitch(1) → 断链(预期) → 重连 143=01/144=02
+    开 LDAC  → setLowDelay(0) → setLdacSwitch(1) → 断链(预期) → 重连 143=01
+               （144 可能读回 02，但手机未连接时该值不可作为 LDAC 生效依据）
 """
 
 from __future__ import annotations
@@ -178,7 +179,7 @@ class App:
         self.combo.bind("<<ComboboxSelected>>", self._on_pick)
 
         # 状态区
-        st = ttk.LabelFrame(body, text="耳机状态（142 与 143 是两条独立路径）", padding=10)
+        st = ttk.LabelFrame(body, text="耳机状态（142 授权 / 143 开关 / 144 编解码）", padding=10)
         st.pack(fill="x", pady=(8, 0))
 
         grid = ttk.Frame(st)
@@ -399,8 +400,9 @@ class App:
         self.append(f"  开关(143)   {self.kv['switch'].get()}")
         self.append(f"  编解码(144) {self.kv['codec'].get()}")
         if not unlocked:
-            self.append("  说明：142=否 只表示 FIIL+ App 的 UI 不放行，")
-            self.append("        不影响本程序直接开 LDAC（实测已验证）。")
+            self.append("  说明：142=否 时耳机通常不会向手机宣告 LDAC 能力，")
+            self.append("        A2DP 可能只能协商出 AAC/SBC。请以手机侧")
+            self.append("        蓝牙编解码器显示为 LDAC 才算真正在用 LDAC。")
 
     def do_backup(self) -> None:
         target = self._target()

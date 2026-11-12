@@ -1,30 +1,47 @@
-# FIIL 耳机 LDAC 离线激活工具集
+# fiil-ldac-unlock 研究仓库
 
-> **当官方服务器已经下线，如何在自己买的耳机上重新打开 LDAC。**
+> **对 FIIL 耳机 LDAC 解锁链路的一次完整逆向记录 —— 以及它失败的证据。**
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey.svg)](#平台支持)
-[![Protocol](https://img.shields.io/badge/transport-SPP%2FRFCOMM%20%7C%20Bluetrum-orange.svg)](docs/PROTOCOL.md)
+[![Protocol](https://img.shields.io/badge/transport-SPP%2FRFCOMM%20%7C%20Bluetooth--LE-orange.svg)](docs/PROTOCOL.md)
 
 **[简体中文](README.md)** | [English](docs/en/README.md)
 
 ---
 
-## 这是什么
+## ⚠️ 先说代价
+
+**这项研究以一副原本已解锁 LDAC 的 FIIL Key Max 变为「LDAC 未解锁」状态为代价。**
+
+这台耳机在 2026-11-11 22:54 时 `142`（LDAC 授权标志）= `01`，是用户通过官方渠道正常激活过的。
+22:59:50，本研究向它写入了一份固件不认可的 license，`142` 当场变成 `00`，**直至今日未能恢复**。
+
+- 耳机硬件**没有损坏**：能开机、能连接、能正常听歌，`143`（开关）能读写。
+- 失去的是**已获得的 LDAC 授权状态**：手机侧 A2DP 从此只能协商出 AAC。
+- 备份文件里存的恰好是**被固件拒绝的那个形态**，所以备份也无法用于恢复。
+
+完整时间线与证据见 [research/README.md](research/README.md)。
+
+**如果你也想在自己的耳机上试，请先读 [DISCLAIMER.md](DISCLAIMER.md)。已经激活过的机器不要再写任何 license。**
+
+---
+
+## 这个仓库是什么
 
 FIIL 耳机的 **LDAC 高清解码**需要先在官方 App（FIIL+）里点一次「激活」。
 激活的本质是：App 从厂商服务器拿到一段 `activateCode`，通过蓝牙写进耳机，
 耳机把内部的一个标志位置 1，LDAC 开关才变成可点。
 
-**但 FIIL 的三个后端域名已经全部 NXDOMAIN 了**（详见 [服务器状态证据](#为什么说服务器已经死了)），
-官方 App 里点「激活」只会转圈失败——你的耳机硬件明明支持 LDAC，却被一个已经关停的服务器锁住了。
+**FIIL 的三个后端域名已经全部 NXDOMAIN**（详见[服务器状态证据](#为什么说服务器已经死了)）。
 
-本项目把 FIIL+ 3.5.2 的激活链路完整逆向出来，并对协议的命令空间做了**全量盲扫**，
-提供 **5 种不依赖服务器的替代方案**，外加一份实测过的「什么能做、什么做不到」清单。
-所有结论都标注了反编译产物的 `文件:行号`。
+本项目把 FIIL+ 3.5.2 的激活链路完整逆向出来，对协议命令空间做了**全量盲扫**，
+累计测试 **66 个 license 候选**，全部被固件拒绝。仓库保留了完整的失败过程、探针脚本与原始收发日志。
 
-> 本项目**只恢复你已购买设备的既有功能**，不提供任何绕过设备安全机制的手段，
+**结论：`activateCode` 无法离线伪造。** 详见[为什么这条路走不通](#为什么这条路走不通)。
+
+> 本项目**只做协议研究与记录**，不提供任何绕过设备安全机制的手段，
 > 不包含官方 APK、反编译产物或任何受版权保护的素材。详见 [DISCLAIMER.md](DISCLAIMER.md)。
 
 ---
@@ -50,8 +67,10 @@ FIIL 耳机的 **LDAC 高清解码**需要先在官方 App（FIIL+）里点一�
 所以「服务器死了」并不意味着「本地随便造个码就能替代」，这条链路真正的断点在第 ③ 步的
 **服务器侧签名**，而不在第 ④ 步。
 
-**另一条更重要的实测结论**：`142`（授权）与 `143`（开关）在 F046 上是**两条独立路径**，
-LDAC 开关本身并不需要 license。详见下方 FAQ「那 LDAC 还能打开吗」。
+**另一条更重要的实测结论（1.4.3 修正）**：`142`（授权）与 `143`（开关）是两条**不同**的命令，
+但**不是互不影响的独立路径**。`143` 只改耳机内部那个开关值；耳机是否把 LDAC 作为可选编码器
+报给手机，取决于 `142`。本项目实测 `142=00` 时，手机侧 `mCodecsSelectableCapabilities` 里
+只有 AAC 与 SBC —— LDAC 传不出去。详见下方 FAQ「那 LDAC 还能打开吗」。
 
 `UnlockLDACActivity` 的四条通道（`UnlockLDACActivity.java:205-254`）：
 
@@ -369,17 +388,31 @@ fiil-ldac-unlock/
 
 **Q：那 LDAC 还能打开吗？**
 
-能——但路径和官方 UI 暗示的不一样。
+**未授权状态下不能真正用上 LDAC。**（本节在 1.1.0~1.4.2 里写的是反的，1.4.3 已修正。）
 
-真机实测（FIIL Key Max / F046，固件 3.0.1.1）证明 **`142`（授权）与 `143`（开关）是两条独立路径**：
+旧结论来自一次误读：当时读到 `142=00 / 143=01 / 144=02` 就断定 LDAC 生效，
+但那几次读数时**手机根本没连耳机**（`A2dpStateMachine: state=Disconnected`），
+`144=02` 只是耳机侧的孤立状态。
 
-| 142 授权 | 143 开关 | 144 编解码 | LDAC 实际生效 |
+2026-11-12 把手机真正连上后，Android 侧的系统状态是决定性的：
+
+```
+mCodecConfig: {codecName:AAC, mCodecType:1, ...}          ← 实际协商 AAC
+mCodecsSelectableCapabilities: [AAC, SBC]                  ← 耳机只通告了这两种
+mCodecsLocalCapabilities: [..., LDAC(6001), ...]           ← 手机侧是支持 LDAC 的
+```
+
+`mCodecsSelectableCapabilities` 是**耳机声明的能力表**。`142=00` 时它里面没有 LDAC，
+所以不是手机不选，而是耳机不报。把 `143` 在 01/00 之间来回切，`mCodecConfig` 始终 AAC。
+
+| `142` 授权 | `143` 开关 | 耳机侧 `144` | 手机侧实际协商 |
 |---|---|---|---|
-| `00` | `01` | `02` | **是** |
+| `00` | `01` | `01` | AAC |
+| `00` | `00` | `01` | AAC |
 
-即 **LDAC 开关本身不需要 license**，license 只影响官方 App 的 UI 是否放行那个开关。
-所以本项目现在把「**开/关 LDAC**」作为主功能（真机验证可用），
-把「写 license」保留为「写入你在别处已取得的有效码」的通道（离线伪造已证伪）。
+因此本项目的定位需要说清楚：**它能把 `143` 写进去并读回，但写进去不等于 LDAC 能用**。
+「写 license」是唯一能让 LDAC 真正工作的路径，而这条路径已被证伪为不可离线伪造。
+`switch` 子命令保留下来，是因为它能改耳机的内部开关状态，且是排查问题的有用工具。
 
 **Q：固件升级后 LDAC 又没了？**
 正常，升级会清掉激活标志。重新跑一次对应方案即可。

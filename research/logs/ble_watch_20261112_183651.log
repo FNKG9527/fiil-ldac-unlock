@@ -1,0 +1,127 @@
+==============================================================================
+# FIIL BLE 会话  tag=watch  addr=B0:F1:A3:A8:7A:C8  2026-11-12T18:36:51
+==============================================================================
+[+] 已连接 B0:F1:A3:A8:7A:C8  mtu=512
+[+] 已订阅通知 0000ff18-0000-1000-8000-00805f9b34fb
+[TX] setUnlock(握手)              00 27 01 00 04 FF 02 02 34
+     [RX] 00 27 02 00 03 FF 01 FF                      RESP cid=39 cmd=255 len=1  payload=FF
+[TX] 142                        01 27 01 00 02 8E 00
+     [RX] 01 27 02 00 03 8E 01 00                      RESP cid=39 cmd=142 len=1  payload=00
+[TX] 143                        02 27 01 00 02 8F 00
+     [RX] 02 27 02 00 03 8F 01 01                      RESP cid=39 cmd=143 len=1  payload=01
+[TX] 144                        03 27 01 00 02 90 00
+     [RX] 03 27 02 00 03 90 01 01                      RESP cid=39 cmd=144 len=1  payload=01
+[TX] 142                        04 27 01 00 02 8E 00
+     [RX] 04 27 02 00 03 8E 01 00                      RESP cid=39 cmd=142 len=1  payload=00
+[TX] 143                        05 27 01 00 02 8F 00
+     [RX] 05 27 02 00 03 8F 01 01                      RESP cid=39 cmd=143 len=1  payload=01
+[TX] 144                        06 27 01 00 02 90 00
+     [RX] 06 27 02 00 03 90 01 01                      RESP cid=39 cmd=144 len=1  payload=01
+[TX] 142                        07 27 01 00 02 8E 00
+     [RX] 07 27 02 00 03 8E 01 00                      RESP cid=39 cmd=142 len=1  payload=00
+[TX] 143                        08 27 01 00 02 8F 00
+     [RX] 08 27 02 00 03 8F 01 01                      RESP cid=39 cmd=143 len=1  payload=01
+[TX] 144                        09 27 01 00 02 90 00
+     [RX] 09 27 02 00 03 90 01 01                      RESP cid=39 cmd=144 len=1  payload=01
+[TX] 142                        0A 27 01 00 02 8E 00
+     [RX] 0A 27 02 00 03 8E 01 00                      RESP cid=39 cmd=142 len=1  payload=00
+[TX] 143                        0B 27 01 00 02 8F 00
+     [RX] 0B 27 02 00 03 8F 01 01                      RESP cid=39 cmd=143 len=1  payload=01
+[TX] 144                        0C 27 01 00 02 90 00
+     [RX] 0C 27 02 00 03 90 01 01                      RESP cid=39 cmd=144 len=1  payload=01
+[TX] 142                        0D 27 01 00 02 8E 00
+     [RX] 0D 27 02 00 03 8E 01 00                      RESP cid=39 cmd=142 len=1  payload=00
+[TX] 143                        0E 27 01 00 02 8F 00
+     [RX] 0E 27 02 00 03 8F 01 01                      RESP cid=39 cmd=143 len=1  payload=01
+[TX] 144                        0F 27 01 00 02 90 00
+     [RX] 0F 27 02 00 03 90 01 01                      RESP cid=39 cmd=144 len=1  payload=01
+[TX] 142                        00 27 01 00 02 8E 00
+     [RX] 00 27 02 00 03 8E 01 00                      RESP cid=39 cmd=142 len=1  payload=00
+[TX] 143                        01 27 01 00 02 8F 00
+     [RX] 01 27 02 00 03 8F 01 01                      RESP cid=39 cmd=143 len=1  payload=01
+[TX] 144                        02 27 01 00 02 90 00
+     [RX] 02 27 02 00 03 90 01 01                      RESP cid=39 cmd=144 len=1  payload=01
+[TX] 142                        03 27 01 00 02 8E 00
+     [RX] 03 27 02 00 03 8E 01 00                      RESP cid=39 cmd=142 len=1  payload=00
+[TX] 143                        04 27 01 00 02 8F 00
+     [RX] 04 27 02 00 03 8F 01 01                      RESP cid=39 cmd=143 len=1  payload=01
+[TX] 144                        05 27 01 00 02 90 00
+     [RX] 05 27 02 00 03 90 01 01                      RESP cid=39 cmd=144 len=1  payload=01
+[TX] 142                        06 27 01 00 02 8E 00
+     [RX] 06 27 02 00 03 8E 01 00                      RESP cid=39 cmd=142 len=1  payload=00
+[TX] 143                        07 27 01 00 02 8F 00
+     [RX] 07 27 02 00 03 8F 01 01                      RESP cid=39 cmd=143 len=1  payload=01
+[TX] 144                        08 27 01 00 02 90 00
+     [RX] 08 27 02 00 03 90 01 01                      RESP cid=39 cmd=144 len=1  payload=01
+[TX] 142                        09 27 01 00 02 8E 00
+     [RX] 09 27 02 00 03 8E 01 00                      RESP cid=39 cmd=142 len=1  payload=00
+[TX] 143                        0A 27 01 00 02 8F 00
+     [RX] 0A 27 02 00 03 8F 01 01                      RESP cid=39 cmd=143 len=1  payload=01
+[TX] 144                        0B 27 01 00 02 90 00
+     [RX] 0B 27 02 00 03 90 01 01                      RESP cid=39 cmd=144 len=1  payload=01
+[TX] 142                        0C 27 01 00 02 8E 00
+     [RX] 0C 27 02 00 03 8E 01 00                      RESP cid=39 cmd=142 len=1  payload=00
+[TX] 143                        0D 27 01 00 02 8F 00
+     [RX] 0D 27 02 00 03 8F 01 01                      RESP cid=39 cmd=143 len=1  payload=01
+[TX] 144                        0E 27 01 00 02 90 00
+     [RX] 0E 27 02 00 03 90 01 01                      RESP cid=39 cmd=144 len=1  payload=01
+[TX] 142                        0F 27 01 00 02 8E 00
+     [RX] 0F 27 02 00 03 8E 01 00                      RESP cid=39 cmd=142 len=1  payload=00
+[TX] 143                        00 27 01 00 02 8F 00
+     [RX] 00 27 02 00 03 8F 01 01                      RESP cid=39 cmd=143 len=1  payload=01
+[TX] 144                        01 27 01 00 02 90 00
+     [RX] 01 27 02 00 03 90 01 01                      RESP cid=39 cmd=144 len=1  payload=01
+[TX] 142                        02 27 01 00 02 8E 00
+     [RX] 02 27 02 00 03 8E 01 00                      RESP cid=39 cmd=142 len=1  payload=00
+[TX] 143                        03 27 01 00 02 8F 00
+     [RX] 03 27 02 00 03 8F 01 01                      RESP cid=39 cmd=143 len=1  payload=01
+[TX] 144                        04 27 01 00 02 90 00
+     [RX] 04 27 02 00 03 90 01 01                      RESP cid=39 cmd=144 len=1  payload=01
+[TX] 142                        05 27 01 00 02 8E 00
+     [RX] 05 27 02 00 03 8E 01 00                      RESP cid=39 cmd=142 len=1  payload=00
+[TX] 143                        06 27 01 00 02 8F 00
+     [RX] 06 27 02 00 03 8F 01 01                      RESP cid=39 cmd=143 len=1  payload=01
+[TX] 144                        07 27 01 00 02 90 00
+     [RX] 07 27 02 00 03 90 01 01                      RESP cid=39 cmd=144 len=1  payload=01
+[TX] 142                        08 27 01 00 02 8E 00
+     [RX] 08 27 02 00 03 8E 01 00                      RESP cid=39 cmd=142 len=1  payload=00
+[TX] 143                        09 27 01 00 02 8F 00
+     [RX] 09 27 02 00 03 8F 01 01                      RESP cid=39 cmd=143 len=1  payload=01
+[TX] 144                        0A 27 01 00 02 90 00
+     [RX] 0A 27 02 00 03 90 01 01                      RESP cid=39 cmd=144 len=1  payload=01
+[TX] 142                        0B 27 01 00 02 8E 00
+     [RX] 0B 27 02 00 03 8E 01 00                      RESP cid=39 cmd=142 len=1  payload=00
+[TX] 143                        0C 27 01 00 02 8F 00
+     [RX] 0C 27 02 00 03 8F 01 01                      RESP cid=39 cmd=143 len=1  payload=01
+[TX] 144                        0D 27 01 00 02 90 00
+     [RX] 0D 27 02 00 03 90 01 01                      RESP cid=39 cmd=144 len=1  payload=01
+[TX] 142                        0E 27 01 00 02 8E 00
+     [RX] 0E 27 02 00 03 8E 01 00                      RESP cid=39 cmd=142 len=1  payload=00
+[TX] 143                        0F 27 01 00 02 8F 00
+     [RX] 0F 27 02 00 03 8F 01 01                      RESP cid=39 cmd=143 len=1  payload=01
+[TX] 144                        00 27 01 00 02 90 00
+     [RX] 00 27 02 00 03 90 01 01                      RESP cid=39 cmd=144 len=1  payload=01
+[TX] 142                        01 27 01 00 02 8E 00
+     [RX] 01 27 02 00 03 8E 01 00                      RESP cid=39 cmd=142 len=1  payload=00
+[TX] 143                        02 27 01 00 02 8F 00
+     [RX] 02 27 02 00 03 8F 01 01                      RESP cid=39 cmd=143 len=1  payload=01
+[TX] 144                        03 27 01 00 02 90 00
+     [RX] 03 27 02 00 03 90 01 01                      RESP cid=39 cmd=144 len=1  payload=01
+[TX] 142                        04 27 01 00 02 8E 00
+     [RX] 04 27 02 00 03 8E 01 00                      RESP cid=39 cmd=142 len=1  payload=00
+[TX] 143                        05 27 01 00 02 8F 00
+     [RX] 05 27 02 00 03 8F 01 01                      RESP cid=39 cmd=143 len=1  payload=01
+[TX] 144                        06 27 01 00 02 90 00
+     [RX] 06 27 02 00 03 90 01 01                      RESP cid=39 cmd=144 len=1  payload=01
+[TX] 142                        07 27 01 00 02 8E 00
+     [RX] 07 27 02 00 03 8E 01 00                      RESP cid=39 cmd=142 len=1  payload=00
+[TX] 143                        08 27 01 00 02 8F 00
+     [RX] 08 27 02 00 03 8F 01 01                      RESP cid=39 cmd=143 len=1  payload=01
+[TX] 144                        09 27 01 00 02 90 00
+     [RX] 09 27 02 00 03 90 01 01                      RESP cid=39 cmd=144 len=1  payload=01
+[TX] 142                        0A 27 01 00 02 8E 00
+     [RX] 0A 27 02 00 03 8E 01 00                      RESP cid=39 cmd=142 len=1  payload=00
+[TX] 143                        0B 27 01 00 02 8F 00
+     [RX] 0B 27 02 00 03 8F 01 01                      RESP cid=39 cmd=143 len=1  payload=01
+[TX] 144                        0C 27 01 00 02 90 00
+     [RX] 0C 27 02 00 03 90 01 01                      RESP cid=39 cmd=144 len=1  payload=01
