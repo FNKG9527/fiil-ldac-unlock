@@ -31,33 +31,34 @@ https://github.com/FNKG9527/fiil-ldac-unlock
 
 | 文件 | 作用 |
 |---|---|
-| **`src/fiil_gui.py`** | **图形界面**：双击即用，扫描 / 读状态 / 开 LDAC / 写授权码全在按钮上 |
+| **`src/fiil_gui.py`** | **图形界面**：`python src/fiil_gui.py` 启动，扫描 / 读状态 / 开 LDAC / 写授权码全在按钮上 |
 | `src/fiil_ble.py` | **主力程序**：PC 纯 BLE 直连，不需要 COM 口 |
 | `src/fiil_ldac.py` | 串口 SPP 直写（Mate / SDP / F39 / **Gaia** 四套帧） |
 | `src/fake_server.py` | 本地假服务器（拦 `newservice.fiil.com`） |
 | `src/patch_apk.py` | APK 重打包注入 |
 | `src/probe_guard.py` | 盲扫护栏（拦 `cid=36` 恢复出厂） |
-| `src/selftest.py` | 离线自检，86 项 |
-| `tools/build_exe.py` | 打包成 Windows exe（默认 `--onedir`） |
+| `src/selftest.py` | 离线自检，93 项 |
+| `tools/build_exe.py` | 留档：当时的 exe 打包脚本（**本仓库不出包、不提供下载**） |
 
 常用命令：
 
 ```bash
 pip install -r requirements.txt
 
-python src/fiil_gui.py                   # 图形界面（推荐）
+python src/fiil_gui.py                   # 图形界面
 python src/fiil_ble.py scan              # 找耳机（服务 0xFDB3 + 厂商 0x0234）
 python src/fiil_ble.py status            # 读机型 / 固件 / 电量 / LDAC 三态
 python src/fiil_ble.py backup            # 备份 license（改之前一定要做）
-python src/fiil_ble.py switch --on       # 开 LDAC ← 这就是"解锁"
+python src/fiil_ble.py switch --on       # 发开 LDAC 命令（能否真的生效取决于 142）
 python src/fiil_ble.py switch --off
 
-python tools/build_exe.py --clean        # 打包 exe
+python src/selftest.py                   # 离线自检
 ```
 
-⚠️ 打包别用 `--onefile`：bootloader 解包到 `%TEMP%\_MEIxxxxx` 时会报
-`Could not create temporary directory!` 然后直接退出（受限令牌环境下必现）。
-`--onedir` 不需要解包，可正常启动。
+> **本仓库不提供任何可执行文件下载**：没有 Release 附件、没有预编译 exe、没有安装包。
+> 想跑界面就直接 `python src/fiil_gui.py`。`tools/build_exe.py` 只是留档，
+> 用于复现当时的验证环境；自己打包时用 `--onedir`，`--onefile` 在受限令牌环境下
+> 会报 `Could not create temporary directory!` 后直接退出。
 
 ### 2. `fiil_mod` v3.4.3（LSPosed 模块）
 

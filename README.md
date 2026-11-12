@@ -97,6 +97,10 @@ FIIL 耳机的 **LDAC 高清解码**需要先在官方 App（FIIL+）里点一�
 
 按折腾程度从低到高：**五 → 一 → 三 → 二 → 四**。
 
+> **但这五条路都没能真正解锁耳机**，理由见 [`research/README.md`](research/README.md)：
+> 卡点不在通道、不在工具，而在 `activateCode` 无法离线伪造——四条断头路在
+> `docs/PROTOCOL.md` §7 有完整记录。下面的命令用于**复现和观察**，不是「解锁教程」。
+
 ### 方案五：PC 端纯 BLE 直连（1.1.0 新增，真机验证）
 
 方案二是唯一一条「纯 PC 侧、不碰手机」的路子，但它卡在一个前提上：
@@ -167,17 +171,13 @@ python src/fiil_gui.py
 下面的日志框逐行显示每一帧 TX/RX，同时照常写 `docs/evidence/`。
 写授权码和取消激活都会先弹确认框。
 
-也可以打包成 exe：
+> **本仓库不提供任何可执行文件下载。** 没有 Release 附件、没有预编译 exe、没有安装包。
+> 界面代码只是留档：它记录了我们当时是怎么驱动这些命令的，不是给人拿去解锁耳机的。
 
-```bash
-python tools/build_exe.py           # 默认 --onedir，推荐
-# 产物：dist/FiilLdacUnlock/FiilLdacUnlock.exe
-```
-
-> ⚠️ **别用 `--onefile`**。单文件模式启动时要把自己解包到 `%TEMP%\_MEIxxxxx`，
-> 在受限令牌 / 沙箱环境里会报 `Could not create temporary directory!` 然后退出
-> （本项目实测踩到过）。`--onedir` 不需要解包，可正常启动，代价是
-> `_internal/` 目录必须和 exe 放在一起。
+（历史上曾用 `tools/build_exe.py` 打过 exe，该脚本仍在，仅供复现当时的验证环境。
+自己打包时**用 `--onedir`，别用 `--onefile`**：单文件模式启动要把自己解包到
+`%TEMP%\_MEIxxxxx`，在受限令牌 / 沙箱环境里会直接报 `Could not create temporary directory!`
+退出，本项目实测踩到过。）
 
 界面在 980×720 下的实际显示：
 
@@ -329,7 +329,13 @@ fiil-ldac-unlock/
 │   ├── probe_guard.py      # 盲扫护栏：拦住 cid=36 恢复出厂等危险命令
 │   └── selftest.py         # 离线自检
 ├── tools/
-│   └── build_exe.py        # 把 GUI 打包成 Windows exe（默认 --onedir）
+│   └── build_exe.py        # 留档：当时把 GUI 打包成 exe 的脚本（本仓库不出包）
+├── research/               # ★ 完整研究现场：探针脚本、原始收发日志、失败复盘
+│   ├── README.md           # 全记录主文档（代价 / 时间线 / 66 个候选 / 四次失误）
+│   ├── probes/             # 29 个一次性探针脚本（原样留档，已脱敏）
+│   ├── logs/               # 59 个真机收发日志（已脱敏）
+│   ├── redact.py           # 脱敏脚本（可复现）
+│   └── fix_paths.py        # 路径占位符还原脚本
 ├── docs/
 │   ├── PROTOCOL.md         # 四套帧格式 + BLE 通道的完整规格
 │   ├── ACTIVATION_FLOW.md  # 激活链路逐步拆解（含文件行号）
