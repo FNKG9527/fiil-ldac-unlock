@@ -1,6 +1,6 @@
-# FIIL Earbuds — LDAC Offline Activation Toolkit
+# FIIL Earbuds — LDAC Unlock Research Notes
 
-> **How to re-enable LDAC on earbuds you already own, after the vendor's activation server went dark.**
+> **A complete reverse-engineering record of the LDAC activation path — and the evidence that it cannot be unlocked offline.**
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](../../LICENSE)
 [![Python](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/)
@@ -9,6 +9,17 @@
 [简体中文](../../README.md) | **[English](README.md)**
 
 ---
+
+## ⚠️ The price of this research first
+
+**This research cost one pair of FIIL Key Max its previously unlocked LDAC state.**
+At 22:54 on 2026-11-11 that headset reported `142` (the LDAC entitlement flag) as `01` — it had
+been activated through official channels. At 22:59:50 this project wrote a license the firmware
+did not accept; `142` flipped to `00` instantly and **has not recovered since**.
+
+- The hardware is **not damaged**: it powers on, connects, plays music, and `143` still reads/writes.
+- What was lost is the **entitlement state**: the phone-side A2DP can now only negotiate AAC.
+- The backup file happens to hold **exactly the rejected form**, so it cannot be used to restore anything.
 
 ## What this is
 
@@ -22,12 +33,17 @@ so tapping "Activate" in the official app just spins forever. Your hardware supp
 a shut-down server is holding it hostage.
 
 This project reverse-engineers the activation path of FIIL+ 3.5.2, brute-scans the whole command
-space of the private protocol, and provides **five server-independent alternatives** — plus an
-honest, measured list of what is possible and what is not. Every claim carries a `file:line`
-reference into the decompiled output.
+space of the private protocol, and then reports **what it could not do**: 66 crafted license
+candidates were all rejected by the firmware, and the `activateCode` cannot be forged offline.
+Every claim carries a `file:line` reference into the decompiled output, and the full failure
+record — probe scripts, raw TX/RX logs, four wrong turns — is published in
+[`research/`](../../research/README.md).
 
-> This project **only restores functionality on hardware you already own**. It contains no
-> APK, no decompiled artifacts, and no copyrighted vendor material. See [DISCLAIMER.md](../../DISCLAIMER.md).
+> **No downloads.** There is no release asset, no prebuilt exe, no installer. The code here is
+> for reproducing and observing protocol behaviour, **not an unlock tutorial**.
+>
+> This project **only studies hardware you already own**. It contains no APK, no decompiled
+> artifacts, and no copyrighted vendor material. See [DISCLAIMER.md](../../DISCLAIMER.md).
 
 ---
 
@@ -80,6 +96,11 @@ Full protocol spec: [PROTOCOL.md](../PROTOCOL.md).
 | 5 | **PC direct BLE connection (no COM port)** | no | no | yes | **no** | F046 / F048 (Mate) | [`src/fiil_ble.py`](../../src/fiil_ble.py) |
 
 Least effort first: **1 → 5 → 3 → 2 → 4**.
+
+> **None of these five routes actually unlocked the headset**, for the reason detailed in
+> [`research/README.md`](../../research/README.md): the blocker is not the channel or the tooling,
+> it is that `activateCode` cannot be forged offline. The commands below are for **reproduction
+> and observation, not an unlock tutorial**.
 
 ### 1. CC Pro2 long-press backdoor (30 seconds, F039 only)
 

@@ -93,7 +93,7 @@ FIIL 耳机的 **LDAC 高清解码**需要先在官方 App（FIIL+）里点一�
 | 二 | **PC 串口写码** | 否 | 否 | 是 | **是** | 全机型 | [`src/fiil_ldac.py`](src/fiil_ldac.py) |
 | 三 | **本地假服务器 + 原版 App** | 视情况 | 否 | 是 | 否 | 全机型 | [`src/fake_server.py`](src/fake_server.py) |
 | 四 | **重打包 APK 内嵌激活码** | 否 | 是 | 是 | 否 | 全机型 | [`src/patch_apk.py`](src/patch_apk.py) |
-| 五 | **PC 端纯 BLE 直连（推荐）** | 否 | 否 | 是 | **否** | F046 / F048 等 Mate 族 | [`src/fiil_ble.py`](src/fiil_ble.py) |
+| 五 | **PC 端纯 BLE 直连（唯一真机跑通的通道）** | 否 | 否 | 是 | **否** | F046 / F048 等 Mate 族 | [`src/fiil_ble.py`](src/fiil_ble.py) |
 
 按折腾程度从低到高：**五 → 一 → 三 → 二 → 四**。
 
