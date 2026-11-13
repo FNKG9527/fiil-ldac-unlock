@@ -3,6 +3,6 @@ contact_links:
   - name: 安全问题
     url: https://github.com/FNKG9527/fiil-ldac-unlock/security/advisories/new
     about: 请勿公开披露。走私密漏洞报告。
-  - name: 使用问题 / 求助
-    url: https://github.com/FNKG9527/fiil-ldac-unlock/discussions
-    about: 不确定是不是 bug？先到 Discussions 问。
+  - name: 先读免责声明
+    url: https://github.com/FNKG9527/fiil-ldac-unlock/blob/main/DISCLAIMER.md
+    about: 本仓库不提供解锁方法、工具或操作步骤。提问前请先读这份声明。
