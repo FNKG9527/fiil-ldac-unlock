@@ -236,6 +236,9 @@ SECURITY.md          已知风险
 LICENSE, NOTICE      许可证
 research/
     README.md        详细研究记录：时间线、候选清单、四次失误复盘
+    2026-11-16-f046-exhaustive.md
+                     第六阶段：把没做对的复核重做一遍（140/141 槽位、帧形状纠错、
+                     GAIA 被证伪、cid=36 首次真实执行、ACK 语义、四批穷举全灭）
     logs/            当时真实收发的原始日志（已脱敏，作为证据保留）
     redact.py        脱敏规则与残留检查
 ```
