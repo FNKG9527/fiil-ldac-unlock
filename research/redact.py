@@ -65,6 +65,17 @@ ALLOWLIST = [
     # 16 进制示例不当作设备标识
     "0123456789012345",
     "deadbeef",
+    # UUID 的前 8 位 —— 文档里引用「FIIL 私有 SPP」「F042 BLE 服务」
+    # 「微芯 BM7x 透传服务」等公开协议常量时会只写这一段，
+    # 形状与 adb 序列号相同，但它们是协议标识，不是设备标识。
+    "d52b47bc",   # d52b47bc-2dea-42c4-b26d-20252fceeeb3（FIIL 私有 SPP）
+    "13fa60a2",   # 13fa60a2-429a-4a90-a3e8-d4c2b9a17655（F042 BLE 私有通道）
+    "3d4dac58",   # 3d4dac58-…（FIIL+ 内的另一条私有服务）
+    "43484152",   # "CHAR" 的 ASCII —— Microchip BM7x 系列 UUID 前缀
+    "49535343",   # "ISSC" 的 ASCII —— 同上
+    "01010607",   # getDeviceId() 的返回值，文档里的协议示例
+    # Android 模拟器里指向宿主机的固定地址，不是内网地址
+    "10.0.2.2",
 ]
 
 
